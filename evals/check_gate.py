@@ -8,8 +8,9 @@ from evals.run_retrieval_eval import evaluate as run_retrieval_eval
 THRESHOLDS = {
     "recall_at_k": 0.80,
     "faithfulness": 4.5,
-    "correctness": 3.0,
+    "correctness": 4.5,   # raised from 3.0 — lock in the win (tolerates one judge point of noise)
 }
+
 
 
 def main() -> None:
