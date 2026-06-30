@@ -3,10 +3,12 @@ from pgvector.psycopg import register_vector
 
 from rag.config import settings
 from rag.ingestion.embedder import embed_texts
+from rag.retrieval.reranker import rerank
 
-def retrieve(query: str, top_k: int = 5) -> list[dict]:
-    """The retrieval pipeline the rest of the app calls. Evolves as we add techniques."""
-    return hybrid_search(query, top_k=top_k)
+def retrieve(query: str, top_k: int = 5, candidates: int = 20) -> list[dict]:
+    """Retrieval pipeline: hybrid retrieve a candidate pool, then cross-encoder rerank."""
+    pool = hybrid_search(query, top_k=candidates)
+    return rerank(query, pool, top_k=top_k)
 
 
 def search(query: str, top_k: int = 5) -> list[dict]:
