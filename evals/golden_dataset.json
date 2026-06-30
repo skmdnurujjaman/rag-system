@@ -1,0 +1,32 @@
+[
+  {
+    "id": "q1",
+    "question": "In the indexing stage of a RAG pipeline, why are large documents broken into chunks?",
+    "expected_answer": "Because the LLM's context window has token limits and semantic search works better on smaller pieces, documents are split into smaller, meaningful chunks instead of being processed whole.",
+    "relevant_snippets": ["smaller, meaningful chunks", "LLM context window has token limits"]
+  },
+  {
+    "id": "q2",
+    "question": "Why can't a standard LLM answer questions about today's news events?",
+    "expected_answer": "Every LLM has a training cutoff date, and after that date it has no knowledge of new events, so it cannot answer questions about recent news.",
+    "relevant_snippets": ["Every LLM has a training cutoff date", "NO knowledge of new events"]
+  },
+  {
+    "id": "q3",
+    "question": "What is produced during the embedding generation step of RAG indexing?",
+    "expected_answer": "Each text chunk is converted into a dense vector using an embedding model, and that vector captures the meaning of the text mathematically.",
+    "relevant_snippets": ["Convert each text chunk", "dense vector", "Captures the MEANING of the text"]
+  },
+  {
+    "id": "q4",
+    "question": "What happens during the augmentation step of the RAG pipeline?",
+    "expected_answer": "The user's query is combined with the retrieved context into a single prompt that instructs the model to answer only from that context — a technique called context injection.",
+    "relevant_snippets": ["Combine user's query", "This is called CONTEXT INJECTION"]
+  },
+  {
+    "id": "q5",
+    "question": "How does LangChain's PyPDFLoader split a PDF when it loads it?",
+    "expected_answer": "PyPDFLoader loads PDF files page by page, producing one Document object per page, so a 25-page PDF becomes 25 separate documents.",
+    "relevant_snippets": ["Load PDF files, page by page", "1 Document object per PAGE"]
+  }
+]
