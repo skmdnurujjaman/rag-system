@@ -1,3 +1,6 @@
+-- Create vector extention if not exist 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- One row per uploaded file
 CREATE TABLE IF NOT EXISTS documents (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

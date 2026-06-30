@@ -13,4 +13,13 @@ Re-run: `uv run python evals/run_retrieval_eval.py`
 
 ## Generation metrics
 
-_(coming next — faithfulness, answer relevance, correctness)_
+Re-run: `uv run python -m evals.run_generation_eval` (LLM-as-judge, `gpt-4o-mini`, temp 0)
+
+| Date | Change | Avg correctness | Avg faithfulness | Notes |
+|------|--------|----------------:|-----------------:|-------|
+| 2026-06-30 | **Baseline** — top-k=5 dense retrieval → `gpt-4o-mini` | 3.40/5 | 5.00/5 | Faithfulness perfect (never hallucinates). Correctness dragged by **q3** (retrieval miss) and **q4** (relevant chunk retrieved but answered "I don't know" — noisy extraction). Both score 1/5. |
+
+## Known gaps to fix with proof (Phase 3)
+- **q3** — relevant chunk not retrieved in top-5 (retrieval miss).
+- **q4** — relevant chunk *is* retrieved but generation says "I don't know" (fragmented/noisy extracted text).
+- Expected fixes: better chunking, data cleaning, hybrid search, reranking — each rerun against these same metrics.

@@ -31,7 +31,7 @@ def is_relevant(chunk_content: str, snippets: list[str]) -> bool:
     return any(normalize(s) in content for s in snippets)
 
 
-def evaluate(top_k: int = TOP_K) -> None:
+def evaluate(top_k: int = TOP_K) -> dict:
     dataset = load_dataset()
     recalls, mrrs, precisions = [], [], []
 
@@ -57,11 +57,17 @@ def evaluate(top_k: int = TOP_K) -> None:
         print(f"{item.id}: hit={'Y' if recall else 'N'}  first_rank={first_rank}  precision={precision:.2f}")
 
     n = len(dataset)
+    metrics = {
+        "recall_at_k": sum(recalls) / n,
+        "mrr": sum(mrrs) / n,
+        "precision_at_k": sum(precisions) / n,
+    }
     print("-" * 50)
     print(f"Questions:     {n}")
-    print(f"Recall@{top_k}:      {sum(recalls) / n:.3f}")
-    print(f"MRR@{top_k}:         {sum(mrrs) / n:.3f}")
-    print(f"Precision@{top_k}:   {sum(precisions) / n:.3f}")
+    print(f"Recall@{top_k}:      {metrics['recall_at_k']:.3f}")
+    print(f"MRR@{top_k}:         {metrics['mrr']:.3f}")
+    print(f"Precision@{top_k}:   {metrics['precision_at_k']:.3f}")
+    return metrics
 
 
 if __name__ == "__main__":
