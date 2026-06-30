@@ -5,8 +5,25 @@ from rag.config import settings
 from rag.ingestion.embedder import embed_texts
 from rag.retrieval.reranker import rerank
 
+def _rrf_fuse(result_lists: list[list[dict]], top_k: int, rrf_k: int = 60) -> list[dict]:
+    """Fuse any number of ranked result lists via Reciprocal Rank Fusion."""
+    scores: dict[int, float] = {}
+    chunks: dict[int, dict] = {}
+    for results in result_lists:
+        for rank, r in enumerate(results, start=1):
+            cid = r["id"]
+            scores[cid] = scores.get(cid, 0.0) + 1.0 / (rrf_k + rank)
+            chunks[cid] = r
+    ranked = sorted(scores, key=scores.get, reverse=True)[:top_k]
+    return [
+        {"id": cid, "document_id": chunks[cid]["document_id"],
+         "content": chunks[cid]["content"], "rrf_score": scores[cid]}
+        for cid in ranked
+    ]
+
+
 def retrieve(query: str, top_k: int = 5, candidates: int = 20) -> list[dict]:
-    """Retrieval pipeline: hybrid retrieve a candidate pool, then cross-encoder rerank."""
+    """Pipeline: hybrid retrieve a candidate pool → cross-encoder rerank."""
     pool = hybrid_search(query, top_k=candidates)
     return rerank(query, pool, top_k=top_k)
 

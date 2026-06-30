@@ -3,30 +3,115 @@
     "id": "q1",
     "question": "In the indexing stage of a RAG pipeline, why are large documents broken into chunks?",
     "expected_answer": "Because the LLM's context window has token limits and semantic search works better on smaller pieces, documents are split into smaller, meaningful chunks instead of being processed whole.",
-    "relevant_snippets": ["smaller, meaningful chunks", "LLM context window has token limits"]
+    "relevant_snippets": [
+      "smaller, meaningful chunks",
+      "LLM context window has token limits"
+    ]
   },
   {
     "id": "q2",
     "question": "Why can't a standard LLM answer questions about today's news events?",
     "expected_answer": "Every LLM has a training cutoff date, and after that date it has no knowledge of new events, so it cannot answer questions about recent news.",
-    "relevant_snippets": ["Every LLM has a training cutoff date", "NO knowledge of new events"]
+    "relevant_snippets": [
+      "Every LLM has a training cutoff date",
+      "NO knowledge of new events"
+    ]
   },
   {
     "id": "q3",
     "question": "What is produced during the embedding generation step of RAG indexing?",
     "expected_answer": "Each text chunk is converted into a dense vector using an embedding model, and that vector captures the meaning of the text mathematically.",
-    "relevant_snippets": ["Convert each text chunk", "dense vector", "Captures the MEANING of the text"]
+    "relevant_snippets": [
+      "Convert each text chunk",
+      "dense vector",
+      "Captures the MEANING of the text"
+    ]
   },
   {
     "id": "q4",
     "question": "What happens during the augmentation step of the RAG pipeline?",
     "expected_answer": "The user's query is combined with the retrieved context into a single prompt that instructs the model to answer only from that context — a technique called context injection.",
-    "relevant_snippets": ["Combine user's query", "This is called CONTEXT INJECTION"]
+    "relevant_snippets": [
+      "Combine user's query",
+      "This is called CONTEXT INJECTION"
+    ]
   },
   {
     "id": "q5",
     "question": "How does LangChain's PyPDFLoader split a PDF when it loads it?",
     "expected_answer": "PyPDFLoader loads PDF files page by page, producing one Document object per page, so a 25-page PDF becomes 25 separate documents.",
-    "relevant_snippets": ["Load PDF files, page by page", "1 Document object per PAGE"]
+    "relevant_snippets": [
+      "Load PDF files, page by page",
+      "1 Document object per PAGE"
+    ]
+  },
+  {
+    "id": "q6",
+    "question": "How do you keep a chatbot from making up facts when it isn't sure of the answer?",
+    "expected_answer": "Explicitly instruct the model to answer only from the provided context and to say it doesn't know when the context is insufficient; this grounds the model's response to real information and greatly reduces hallucination.",
+    "relevant_snippets": [
+      "Answer only from context",
+      "GROUNDS the model's response to real information"
+    ]
+  },
+  {
+    "id": "q7",
+    "question": "After the search returns candidate passages, how are they put in order, and what measure tells you how close each one is to the query?",
+    "expected_answer": "The retrieved results are ordered by relevance, and how close each result is to the query is measured with a metric such as cosine similarity (or more advanced reranking algorithms).",
+    "relevant_snippets": ["Order results by relevance", "Cosine Similarity"]
+  },
+  {
+    "id": "q8",
+    "question": "If full retraining is too costly, which lighter fine-tuning techniques can you use instead, and what do they do to the original model weights?",
+    "expected_answer": "LoRA and QLoRA are parameter-efficient fine-tuning methods that freeze the base weights and train only the remaining weights, making them much cheaper than full fine-tuning.",
+    "relevant_snippets": [
+      "Parameter efficient fine-tuning methods",
+      "Freeze base weights, train only remaining weights"
+    ]
+  },
+  {
+    "id": "q9",
+    "question": "When a single paragraph mixes two unrelated subjects, which splitting approach can separate them, and what signal does it use to decide where to cut?",
+    "expected_answer": "Semantic (meaning-based) splitting handles this: it embeds each sentence and cuts where the cosine similarity between consecutive sentences drops suddenly, since that sudden drop marks a topic change.",
+    "relevant_snippets": [
+      "splits where the meaning changes significantly",
+      "Find where similarity DROPS SUDDENLY"
+    ]
+  },
+  {
+    "id": "q10",
+    "question": "Comparing a query against a million stored vectors one by one is too slow. What trick narrows the search to a small fraction of them, and what is the approximate-result technique it relies on called?",
+    "expected_answer": "Group the vectors into clusters and compute each cluster's centroid; compare the query only against the centroids to pick the closest cluster, then search just that one cluster. This is approximate nearest neighbor (ANN) lookup — approximate but good enough in practice.",
+    "relevant_snippets": [
+      "Calculate the CENTROID of each cluster",
+      "APPROXIMATE NEAREST NEIGHBOR (ANN) lookup"
+    ]
+  },
+  {
+    "id": "q11",
+    "question": "What capabilities does a lightweight option like FAISS lack compared with a full system like Pinecone, and what rule relates the two?",
+    "expected_answer": "A plain vector store such as FAISS does only storage and similarity search and lacks transactions, auth, backup/restore, distributed architecture, and concurrency control, whereas a vector database like Pinecone adds them. The rule: every vector database is a vector store, but not every vector store is a vector database.",
+    "relevant_snippets": [
+      "transactions, auth, backup/restore",
+      "NOT every vector store is a vector database"
+    ]
+  },
+  {
+    "id": "q12",
+    "question": "Why might a tag-based movie recommender fail to connect two films that actually tell very similar stories?",
+    "expected_answer": "Tag/keyword matching only looks at surface metadata like director, actors, and genre, so two films with similar stories but different tags are never flagged as similar. Semantic search compares meaning instead and would catch the match.",
+    "relevant_snippets": [
+      "Keyword matching looks at surface metadata",
+      "Semantic search looks at MEANING"
+    ]
+  },
+  {
+    "id": "q13",
+    "question": "The most widely used text splitter tries a sequence of break points before giving up. Why is that approach better than a plain character splitter?",
+    "expected_answer": "RecursiveCharacterTextSplitter falls back through paragraphs, then sentences, then words, and finally characters, so it respects natural text boundaries and words are not cut in the middle, producing more semantically meaningful chunks than a plain character splitter.",
+    "relevant_snippets": [
+      "Respects natural text boundaries",
+      "Words are NOT cut in the middle"
+    ]
   }
 ]
