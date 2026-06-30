@@ -5,6 +5,7 @@ from rag.ingestion.chunker import chunk_text
 from rag.ingestion.embedder import embed_texts
 from rag.ingestion.loader import load_pdf
 from rag.ingestion.store import store_document
+from rag.ingestion.cleaner import clean_text
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,10 @@ def ingest_pdf(path: str) -> int:
 
     text = load_pdf(path)
     logger.info("ingestion.loaded filename=%s chars=%d", filename, len(text))
+    
+    text = clean_text(text)
+    logger.info("ingestion.cleaned filename=%s chars=%d", filename, len(text))
+
 
     chunks = chunk_text(text)
     logger.info("ingestion.chunked filename=%s chunks=%d", filename, len(chunks))
