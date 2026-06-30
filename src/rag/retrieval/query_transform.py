@@ -36,3 +36,17 @@ def hyde(query: str) -> str:
     )
     return response.choices[0].message.content.strip()
 
+def decompose(query: str) -> list[str]:
+    """Break a complex question into simpler standalone sub-questions."""
+    prompt = (
+        "If the question below contains multiple distinct sub-questions, break it into "
+        "2-4 simpler standalone sub-questions, one per line, no numbering. "
+        "If it is already a single simple question, return it unchanged.\n\n"
+        f"Question: {query}"
+    )
+    response = client.chat.completions.create(
+        model=QUERY_MODEL,
+        temperature=0,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return [ln.strip() for ln in response.choices[0].message.content.splitlines() if ln.strip()]
