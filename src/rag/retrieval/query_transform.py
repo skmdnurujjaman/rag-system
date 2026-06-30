@@ -20,3 +20,19 @@ def multi_query(query: str, n: int = 3) -> list[str]:
     )
     rewrites = [ln.strip() for ln in response.choices[0].message.content.splitlines() if ln.strip()]
     return [query, *rewrites]
+
+def hyde(query: str) -> str:
+    """Generate a hypothetical answer to embed instead of the query (HyDE)."""
+    prompt = (
+        "Write a short, factual paragraph that directly answers the question below, "
+        "as if it were an excerpt from a technical study-notes document. "
+        "Do not hedge or say you're unsure — just write a plausible answer.\n\n"
+        f"Question: {query}"
+    )
+    response = client.chat.completions.create(
+        model=QUERY_MODEL,
+        temperature=0,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content.strip()
+
