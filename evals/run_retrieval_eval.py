@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from rag.retrieval.search import search
+from rag.retrieval.search import retrieve
 
 DATASET_PATH = Path(__file__).parent / "golden_dataset.json"
 TOP_K = 5
@@ -36,7 +36,7 @@ def evaluate(top_k: int = TOP_K) -> dict:
     recalls, mrrs, precisions = [], [], []
 
     for item in dataset:
-        results = search(item.question, top_k=top_k)
+        results = retrieve(item.question, top_k=top_k)
         relevance = [is_relevant(r["content"], item.relevant_snippets) for r in results]
 
         recall = 1.0 if any(relevance) else 0.0

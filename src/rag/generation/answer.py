@@ -21,6 +21,7 @@ def generate_answer(question: str, chunks: list[dict]) -> str:
     response = client.chat.completions.create(
         model=ANSWER_MODEL,
         max_tokens=1024,
+        temperature=0,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},

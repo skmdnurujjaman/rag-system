@@ -15,7 +15,6 @@ class Source(BaseModel):
     id: int
     document_id: int
     content: str
-    distance: float
 
 
 class QueryResponse(BaseModel):
