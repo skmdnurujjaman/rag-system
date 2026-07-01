@@ -1,3 +1,9 @@
+import os
+
+#use the local cache and skip the Hub entirely
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 from sentence_transformers import CrossEncoder
 
 RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
