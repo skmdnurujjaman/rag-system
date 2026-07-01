@@ -2,11 +2,22 @@ import hashlib
 import json
 import logging
 import time
-
+import contextvars
 import openai
-from openai import OpenAI
 
+from openai import OpenAI
 from rag.config import settings
+
+class CostLimitExceeded(Exception):
+    pass
+
+class _Budget:
+    def __init__(self, max_tokens: int):
+        self.max_tokens = max_tokens
+        self.used = 0
+        
+_budget: contextvars.ContextVar = contextvars.ContextVar("budget", default=None)
+
 
 logger = logging.getLogger(__name__)
 _client = OpenAI(api_key=settings.openai_api_key)
@@ -50,7 +61,18 @@ _client = OpenAI(
 _COMPLEXITY_SIGNALS = ("compare", "difference", "trade-off", "tradeoff",
                        "versus", " vs ", "step by step", "in detail", "analyze")
 
+def start_budget(max_tokens: int) -> None:
+    """Start a per-request token budget (0 = unlimited). Call BEFORE running the graph."""
+    _budget.set(_Budget(max_tokens))
 
+def _record_usage(total_tokens: int) -> None:
+    b = _budget.get()
+    if b is None or b.max_tokens <= 0:
+        return
+    b.used += total_tokens                      # mutate the shared object
+    if b.used > b.max_tokens:
+        raise CostLimitExceeded(f"token budget {b.max_tokens} exceeded (used {b.used})")
+    
 def route_model(query: str) -> str:
     """Pick a model by query complexity: cheap by default, strong for hard queries."""
     is_complex = (
@@ -72,6 +94,7 @@ def _complete(client: OpenAI, model: str, messages: list[dict],
         model=model, messages=messages, temperature=temperature,
         max_tokens=max_tokens, **kwargs,
     )
+    _record_usage(response.usage.total_tokens if response.usage else 0)
     return response.choices[0].message.content
 
 def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
@@ -134,6 +157,7 @@ def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
     logger.info("gateway.embed model=%s texts=%d", model, len(texts))
     try:
         response = _client.embeddings.create(model=model, input=texts)
+        _record_usage(response.usage.total_tokens if response.usage else 0)
     except openai.APIError as e:
         logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
         raise
