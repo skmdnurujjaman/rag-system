@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from fastapi import FastAPI, HTTPException
+
 from rag.agents.qa import answer_question
+from rag.agents.summary import summarize_document
 
 app = FastAPI(title="Agentic RAG")
 
@@ -20,6 +23,22 @@ class Source(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[Source]
+class SummarizeRequest(BaseModel):
+    document_id: int
+    max_words: int = 200
+
+
+class SummarizeResponse(BaseModel):
+    summary: str
+
+
+@app.post("/summarize", response_model=SummarizeResponse)
+def summarize(request: SummarizeRequest) -> SummarizeResponse:
+    try:
+        summary = summarize_document(request.document_id, max_words=request.max_words)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return SummarizeResponse(summary=summary)
 
 
 @app.post("/query", response_model=QueryResponse)
