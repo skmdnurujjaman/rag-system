@@ -13,6 +13,8 @@ _client = OpenAI(api_key=settings.openai_api_key)
 
 CHAT_MODEL = "gpt-4o-mini"
 EMBED_MODEL = "text-embedding-3-small"
+CHEAP_MODEL = "gpt-4o-mini"
+STRONG_MODEL = "gpt-4o"   # set to "gpt-4o-mini" too if you want zero extra cost while keeping routing
 
 # --- fallback provider: Gemini via its OpenAI-compatible endpoint ---
 FALLBACK_MODEL = "gemini-2.5-flash"  # change to any Gemini model your key supports
@@ -44,6 +46,21 @@ _client = OpenAI(
     timeout=30.0,      # seconds — fail fast instead of hanging
     max_retries=3,     # SDK retries 429/5xx/connection with exponential backoff
 )
+
+_COMPLEXITY_SIGNALS = ("compare", "difference", "trade-off", "tradeoff",
+                       "versus", " vs ", "step by step", "in detail", "analyze")
+
+
+def route_model(query: str) -> str:
+    """Pick a model by query complexity: cheap by default, strong for hard queries."""
+    is_complex = (
+        len(query.split()) > 30
+        or query.count("?") > 1
+        or any(s in query.lower() for s in _COMPLEXITY_SIGNALS)
+    )
+    chosen = STRONG_MODEL if is_complex else CHEAP_MODEL
+    logger.info("gateway.route words=%d complex=%s -> %s", len(query.split()), is_complex, chosen)
+    return chosen
 
 def _make_key(payload: dict) -> str:
     blob = json.dumps(payload, sort_keys=True)

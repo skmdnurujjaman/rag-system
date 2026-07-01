@@ -1,5 +1,6 @@
 from rag.gateway.llm import chat
 from rag.gateway.llm import chat, chat_stream
+from rag.gateway.llm import chat, chat_stream, route_model
 
 SYSTEM_PROMPT = (
     "You are a helpful assistant that answers questions using ONLY the provided context. "
@@ -16,9 +17,10 @@ def _build_messages(question: str, chunks: list[dict]) -> list[dict]:
     ]
 
 def generate_answer(question: str, chunks: list[dict]) -> str:
-    return chat(_build_messages(question, chunks), temperature=0, max_tokens=1024)
+    return chat(_build_messages(question, chunks), model=route_model(question),
+                temperature=0, max_tokens=1024)
 
 
 def generate_answer_stream(question: str, chunks: list[dict]):
-    yield from chat_stream(_build_messages(question, chunks), temperature=0, max_tokens=1024)
-
+    yield from chat_stream(_build_messages(question, chunks), model=route_model(question),
+                           temperature=0, max_tokens=1024)
