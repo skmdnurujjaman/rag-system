@@ -54,7 +54,10 @@ def evaluate(top_k: int = TOP_K) -> dict:
         precisions.append(precision)
 
         first_rank = next((i + 1 for i, rel in enumerate(relevance) if rel), None)
-        print(f"{item.id}: hit={'Y' if recall else 'N'}  first_rank={first_rank}  precision={precision:.2f}")
+        print(
+            f"{item.id}: hit={'Y' if recall else 'N'}  "
+            f"first_rank={first_rank}  precision={precision:.2f}"
+        )
 
     n = len(dataset)
     metrics = {

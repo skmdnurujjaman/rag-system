@@ -1,11 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from fastapi import FastAPI, HTTPException
-
+from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
-from rag.agents.essay import write_essay
 
 app = FastAPI(title="Agentic RAG")
 

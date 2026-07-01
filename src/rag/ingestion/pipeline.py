@@ -2,10 +2,10 @@ import logging
 from pathlib import Path
 
 from rag.ingestion.chunker import chunk_text
+from rag.ingestion.cleaner import clean_text
 from rag.ingestion.embedder import embed_texts
 from rag.ingestion.loader import load_pdf
 from rag.ingestion.store import store_document
-from rag.ingestion.cleaner import clean_text
 
 logger = logging.getLogger(__name__)
 

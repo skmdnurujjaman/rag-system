@@ -1,25 +1,14 @@
-from openai import OpenAI
-
-from rag.config import settings
-
-client = OpenAI(api_key=settings.openai_api_key)
-QUERY_MODEL = "gpt-4o-mini"
+from rag.gateway.llm import chat
 
 
 def multi_query(query: str, n: int = 3) -> list[str]:
-    """Return the original query plus n LLM paraphrases (varied wording, same intent)."""
     prompt = (
         f"Rewrite the question below in {n} different ways, using varied wording and synonyms "
         f"while keeping the exact same meaning. Output one rewrite per line, no numbering.\n\n"
         f"Question: {query}"
     )
-    response = client.chat.completions.create(
-        model=QUERY_MODEL,
-        temperature=0,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    rewrites = [ln.strip() for ln in response.choices[0].message.content.splitlines() if ln.strip()]
-    return [query, *rewrites]
+    text = chat([{"role": "user", "content": prompt}], temperature=0)
+    return [query, *[ln.strip() for ln in text.splitlines() if ln.strip()]]
 
 def hyde(query: str) -> str:
     """Generate a hypothetical answer to embed instead of the query (HyDE)."""
@@ -29,12 +18,8 @@ def hyde(query: str) -> str:
         "Do not hedge or say you're unsure — just write a plausible answer.\n\n"
         f"Question: {query}"
     )
-    response = client.chat.completions.create(
-        model=QUERY_MODEL,
-        temperature=0,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return response.choices[0].message.content.strip()
+    text = chat([{"role": "user", "content": prompt}], temperature=0)
+    return text.strip()
 
 def decompose(query: str) -> list[str]:
     """Break a complex question into simpler standalone sub-questions."""
@@ -44,9 +29,5 @@ def decompose(query: str) -> list[str]:
         "If it is already a single simple question, return it unchanged.\n\n"
         f"Question: {query}"
     )
-    response = client.chat.completions.create(
-        model=QUERY_MODEL,
-        temperature=0,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return [ln.strip() for ln in response.choices[0].message.content.splitlines() if ln.strip()]
+    text = chat([{"role": "user", "content": prompt}], temperature=0)
+    return [ln.strip() for ln in text.splitlines() if ln.strip()]

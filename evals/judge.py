@@ -1,31 +1,21 @@
 import json
 
-from openai import OpenAI
 from pydantic import BaseModel
 
-from rag.config import settings
-
-client = OpenAI(api_key=settings.openai_api_key)
-JUDGE_MODEL = "gpt-4o-mini"
+from rag.gateway.llm import chat
 
 
 class Judgment(BaseModel):
     score: int
     reasoning: str
 
-
 def _judge(system_prompt: str, user_prompt: str) -> Judgment:
-    response = client.chat.completions.create(
-        model=JUDGE_MODEL,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
+    content = chat(
+        [{"role": "system", "content": system_prompt},
+         {"role": "user", "content": user_prompt}],
+        temperature=0, max_tokens=512, response_format={"type": "json_object"},
     )
-    return Judgment(**json.loads(response.choices[0].message.content))
-
+    return Judgment(**json.loads(content))
 
 CORRECTNESS_SYSTEM = """You grade whether a GENERATED answer is factually correct \
 compared to a reference EXPECTED answer for the same question. Judge meaning, not wording.
