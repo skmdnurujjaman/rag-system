@@ -36,3 +36,13 @@ Re-run: `uv run python -m evals.run_generation_eval` (LLM-as-judge, `gpt-4o-mini
 - **q3** — relevant chunk not retrieved in top-5 (retrieval miss).
 - **q4** — relevant chunk *is* retrieved but generation says "I don't know" (fragmented/noisy extracted text).
 - Expected fixes: better chunking, data cleaning, hybrid search, reranking — each rerun against these same metrics.
+
+## Agent faithfulness (Summary & Essay)
+
+Reference-free faithfulness (LLM-judge, temp 0) — is the output grounded in its source, with nothing invented?
+Re-run: `uv run python -m evals.run_summary_eval` · `uv run python -m evals.run_essay_eval`
+
+| Date | Agent | Faithfulness | Notes |
+|------|-------|-------------:|-------|
+| 2026-07-01 | **Summary** | **5.00/5** | Judged against the full document. Same grounding discipline as Q&A. |
+| 2026-07-01 | **Essay** | **5.00/5** (3 topics) | Judged against retrieved sources. Grounded even at `temperature=0.5`. |
