@@ -1,9 +1,14 @@
+import json
+
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
+from rag.generation.answer import generate_answer_stream
+from rag.retrieval.search import retrieve
 
 app = FastAPI(title="Agentic RAG")
 
@@ -53,8 +58,18 @@ def summarize(request: SummarizeRequest) -> SummarizeResponse:
         raise HTTPException(status_code=404, detail=str(e))
     return SummarizeResponse(summary=summary)
 
-
 @app.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest) -> QueryResponse:
     result = answer_question(request.question, top_k=request.top_k)
     return QueryResponse(answer=result["answer"], sources=result["chunks"])
+
+@app.post("/query/stream")
+def query_stream(request: QueryRequest):
+    chunks = retrieve(request.question, top_k=request.top_k)
+
+    def event_stream():
+        for token in generate_answer_stream(request.question, chunks):
+            yield f"data: {json.dumps(token)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
