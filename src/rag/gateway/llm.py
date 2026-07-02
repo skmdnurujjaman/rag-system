@@ -7,6 +7,7 @@ import openai
 
 from openai import OpenAI
 from rag.config import settings
+from rag.observability import log, metrics
 
 class CostLimitExceeded(Exception):
     pass
@@ -90,11 +91,16 @@ def _make_key(payload: dict) -> str:
 
 def _complete(client: OpenAI, model: str, messages: list[dict],
               temperature: float, max_tokens: int, kwargs: dict) -> str:
+    start = time.perf_counter()
     response = client.chat.completions.create(
         model=model, messages=messages, temperature=temperature,
         max_tokens=max_tokens, **kwargs,
     )
-    _record_usage(response.usage.total_tokens if response.usage else 0)
+    tokens = response.usage.total_tokens if response.usage else 0
+    _record_usage(tokens)
+    latency_ms=round((time.perf_counter() - start) * 1000, 1)
+    log.info("llm.call", model=model, tokens=tokens, latency_ms=latency_ms)
+    metrics.record_llm_call(latency_ms, tokens)
     return response.choices[0].message.content
 
 def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
@@ -119,7 +125,8 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
         "max_tokens": max_tokens, "kwargs": kwargs,
     })
     if use_cache and key in _chat_cache:
-        logger.info("gateway.chat CACHE HIT model=%s", model)
+        log.info("llm.cache_hit", model=model)
+        metrics.record_cache_hit()
         return _chat_cache[key]
 
     logger.info("gateway.chat CACHE MISS model=%s messages=%d", model, len(messages))
@@ -138,8 +145,9 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
             if _consecutive_failures >= FAILURE_THRESHOLD:
                 _circuit_open_until = time.time() + COOLDOWN_SECONDS
                 logger.warning("gateway.chat CIRCUIT OPEN %ds -> routing to fallback", COOLDOWN_SECONDS)
-        except openai.APIError as e:                       # client error (4xx) -> our bug
+        except openai.APIError as e:
             logger.error("gateway.chat PRIMARY client error=%s (no fallback)", type(e).__name__)
+            metrics.record_error()
             raise
     else:
         logger.warning("gateway.chat CIRCUIT OPEN -> skipping primary")
@@ -156,10 +164,16 @@ def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
     """Single entry point for all embedding calls."""
     logger.info("gateway.embed model=%s texts=%d", model, len(texts))
     try:
+        start = time.perf_counter()
         response = _client.embeddings.create(model=model, input=texts)
-        _record_usage(response.usage.total_tokens if response.usage else 0)
+        tokens = response.usage.total_tokens if response.usage else 0
+        _record_usage(tokens)
+        latency_ms=round((time.perf_counter() - start) * 1000, 1)
+        log.info("llm.embed", model=model, n_texts=len(texts), tokens=tokens,
+             latency_ms=latency_ms)
+        metrics.record_embed(latency_ms, tokens)
+        return [item.embedding for item in response.data]
     except openai.APIError as e:
         logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
         raise
 
-    return [item.embedding for item in response.data]

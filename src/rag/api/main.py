@@ -9,6 +9,7 @@ from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
 from rag.generation.answer import generate_answer_stream
 from rag.retrieval.search import retrieve
+from rag.observability import metrics
 
 app = FastAPI(title="Agentic RAG")
 
@@ -73,3 +74,7 @@ def query_stream(request: QueryRequest):
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+@app.get("/metrics")
+def get_metrics():
+    return metrics.summary()
