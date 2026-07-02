@@ -1,10 +1,17 @@
+import os
 import structlog
 import threading
 
+from rag.config import settings
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 
+if settings.langfuse_public_key:
+    os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
+    os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+    os.environ["LANGFUSE_HOST"] = settings.langfuse_host
+    
 _provider = TracerProvider()
 _provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))  # prints spans; swap for OTLP later
 trace.set_tracer_provider(_provider)

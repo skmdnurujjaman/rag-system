@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     openai_api_key: str
     gemini_api_key: str
     mcp_auth_token: str
-
+    langfuse_secret_key: str = ""
+    langfuse_public_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
 
 settings = Settings()

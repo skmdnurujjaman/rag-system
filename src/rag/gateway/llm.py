@@ -5,9 +5,9 @@ import time
 import contextvars
 import openai
 
-from openai import OpenAI
 from rag.config import settings
 from rag.observability import log, metrics, tracer
+from langfuse.openai import OpenAI
 
 class CostLimitExceeded(Exception):
     pass
