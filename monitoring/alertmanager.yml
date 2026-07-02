@@ -1,0 +1,11 @@
+route:
+  receiver: default
+  group_by: ["alertname"]
+  group_wait: 10s        # wait to batch alerts in a group before first send
+  group_interval: 1m     # wait before sending updates to an existing group
+  repeat_interval: 1h    # re-notify for still-firing alerts at most hourly
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: "http://host.docker.internal:8000/alert-webhook"

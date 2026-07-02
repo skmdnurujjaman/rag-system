@@ -1,0 +1,34 @@
+groups:
+  - name: rag-alerts
+    rules:
+      - alert: ApiDown
+        expr: up{job="rag"} == 0
+        for: 30s
+        labels: { severity: critical }
+        annotations:
+          summary: "RAG API is down"
+          description: "Prometheus can't scrape {{ $labels.instance }} for 30s."
+
+      - alert: HighErrorRate
+        expr: sum(rate(rag_model_errors_total[5m])) > 0.1
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "High model error rate"
+          description: "Errors at {{ $value | printf \"%.2f\" }}/s over 5m."
+
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(rag_model_latency_seconds_bucket[5m])) by (le)) > 8
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "p95 model latency > 8s"
+          description: "p95 is {{ $value | printf \"%.1f\" }}s over 5m."
+
+      - alert: CostSpike
+        expr: sum(rate(rag_model_tokens_total[5m])) > 2000
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Token/cost spike"
+          description: "{{ $value | printf \"%.0f\" }} tokens/s over 5m."

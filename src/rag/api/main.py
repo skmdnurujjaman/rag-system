@@ -11,7 +11,7 @@ from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
 from rag.generation.answer import generate_answer_stream
 from rag.retrieval.search import retrieve
-from rag.observability import metrics
+from rag.observability import metrics, log
 
 app = FastAPI(title="Agentic RAG")
 
@@ -84,3 +84,13 @@ def prometheus_metrics():
 @app.get("/metrics/summary")
 def metrics_summary():
     return metrics.summary()
+
+@app.post("/alert-webhook")
+async def alert_webhook(payload: dict):
+    for a in payload.get("alerts", []):
+        log.warning("alert.received",
+                    name=a["labels"].get("alertname"),
+                    severity=a["labels"].get("severity"),
+                    status=a["status"],
+                    summary=a["annotations"].get("summary"))
+    return {"ok": True}
