@@ -7,7 +7,7 @@ import openai
 
 from openai import OpenAI
 from rag.config import settings
-from rag.observability import log, metrics
+from rag.observability import log, metrics, tracer
 
 class CostLimitExceeded(Exception):
     pass
@@ -91,17 +91,20 @@ def _make_key(payload: dict) -> str:
 
 def _complete(client: OpenAI, model: str, messages: list[dict],
               temperature: float, max_tokens: int, kwargs: dict) -> str:
-    start = time.perf_counter()
-    response = client.chat.completions.create(
-        model=model, messages=messages, temperature=temperature,
-        max_tokens=max_tokens, **kwargs,
-    )
-    tokens = response.usage.total_tokens if response.usage else 0
-    _record_usage(tokens)
-    latency_ms=round((time.perf_counter() - start) * 1000, 1)
-    log.info("llm.call", model=model, tokens=tokens, latency_ms=latency_ms)
-    metrics.record_llm_call(latency_ms, tokens)
-    return response.choices[0].message.content
+    with tracer.start_as_current_span("llm.call") as span:
+        span.set_attribute("llm.model", model)
+        start = time.perf_counter()
+        response = client.chat.completions.create(
+            model=model, messages=messages, temperature=temperature,
+            max_tokens=max_tokens, **kwargs,
+        )
+        tokens = response.usage.total_tokens if response.usage else 0
+        _record_usage(tokens)
+        latency_ms=round((time.perf_counter() - start) * 1000, 1)
+        span.set_attribute("llm.tokens", tokens)
+        log.info("llm.call", model=model, tokens=tokens, latency_ms=latency_ms)
+        metrics.record_llm_call(latency_ms, tokens)
+        return response.choices[0].message.content
 
 def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
                 max_tokens: int = 1024, **kwargs):
@@ -162,18 +165,21 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
 
 def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
     """Single entry point for all embedding calls."""
-    logger.info("gateway.embed model=%s texts=%d", model, len(texts))
-    try:
-        start = time.perf_counter()
-        response = _client.embeddings.create(model=model, input=texts)
-        tokens = response.usage.total_tokens if response.usage else 0
-        _record_usage(tokens)
-        latency_ms=round((time.perf_counter() - start) * 1000, 1)
-        log.info("llm.embed", model=model, n_texts=len(texts), tokens=tokens,
-             latency_ms=latency_ms)
-        metrics.record_embed(latency_ms, tokens)
-        return [item.embedding for item in response.data]
-    except openai.APIError as e:
-        logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
-        raise
+    with tracer.start_as_current_span("llm.embed") as span:
+        span.set_attribute("llm.model", model)
+        logger.info("gateway.embed model=%s texts=%d", model, len(texts))
+        try:
+            start = time.perf_counter()
+            response = _client.embeddings.create(model=model, input=texts)
+            tokens = response.usage.total_tokens if response.usage else 0
+            _record_usage(tokens)
+            latency_ms=round((time.perf_counter() - start) * 1000, 1)
+            span.set_attribute("llm.model", model)
+            log.info("llm.embed", model=model, n_texts=len(texts), tokens=tokens,
+                latency_ms=latency_ms)
+            metrics.record_embed(latency_ms, tokens)
+            return [item.embedding for item in response.data]
+        except openai.APIError as e:
+            logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
+            raise
 

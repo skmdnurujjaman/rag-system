@@ -4,7 +4,7 @@ from pgvector.psycopg import register_vector
 from rag.config import settings
 from rag.ingestion.embedder import embed_texts
 from rag.retrieval.reranker import rerank
-
+from rag.observability import tracer
 
 def _rrf_fuse(result_lists: list[list[dict]], top_k: int, rrf_k: int = 60) -> list[dict]:
     """Fuse any number of ranked result lists via Reciprocal Rank Fusion."""
@@ -21,13 +21,13 @@ def _rrf_fuse(result_lists: list[list[dict]], top_k: int, rrf_k: int = 60) -> li
          "content": chunks[cid]["content"], "rrf_score": scores[cid]}
         for cid in ranked
     ]
-
-
+    
 def retrieve(query: str, top_k: int = 5, candidates: int = 20) -> list[dict]:
     """Pipeline: hybrid retrieve a candidate pool → cross-encoder rerank."""
-    pool = hybrid_search(query, top_k=candidates)
-    return rerank(query, pool, top_k=top_k)
-
+    with tracer.start_as_current_span("retrieve") as span:
+        span.set_attribute("retrieve.top_k", top_k)
+        pool = hybrid_search(query, top_k=candidates)
+        return rerank(query, pool, top_k=top_k)
 
 def search(query: str, top_k: int = 5) -> list[dict]:
     """Find the top_k chunks most similar to the query."""

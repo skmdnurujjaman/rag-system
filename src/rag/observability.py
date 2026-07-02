@@ -1,6 +1,16 @@
 import structlog
 import threading
 
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+
+_provider = TracerProvider()
+_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))  # prints spans; swap for OTLP later
+trace.set_tracer_provider(_provider)
+
+tracer = trace.get_tracer("rag")
+
 structlog.configure(
     processors=[
         structlog.processors.add_log_level,          # adds "level"
