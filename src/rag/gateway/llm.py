@@ -8,6 +8,10 @@ import openai
 from rag.config import settings
 from rag.observability import log, metrics, tracer
 from langfuse.openai import OpenAI
+from rag.observability import (
+    CACHE_HITS, MODEL_CALLS, MODEL_ERRORS, MODEL_LATENCY, MODEL_TOKENS,
+    log, metrics, tracer,
+)
 
 class CostLimitExceeded(Exception):
     pass
@@ -104,6 +108,10 @@ def _complete(client: OpenAI, model: str, messages: list[dict],
         span.set_attribute("llm.tokens", tokens)
         log.info("llm.call", model=model, tokens=tokens, latency_ms=latency_ms)
         metrics.record_llm_call(latency_ms, tokens)
+        MODEL_CALLS.labels(model).inc()
+        MODEL_TOKENS.labels(model).inc(tokens)
+        MODEL_LATENCY.labels(model).observe(latency_ms / 1000)   # Histograms want seconds
+
         return response.choices[0].message.content
 
 def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
@@ -130,6 +138,7 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
     if use_cache and key in _chat_cache:
         log.info("llm.cache_hit", model=model)
         metrics.record_cache_hit()
+        CACHE_HITS.inc()
         return _chat_cache[key]
 
     logger.info("gateway.chat CACHE MISS model=%s messages=%d", model, len(messages))
@@ -143,6 +152,8 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
             return result
         except _TRANSIENT as e:
             _consecutive_failures += 1
+            metrics.record_error()
+            MODEL_ERRORS.inc()
             logger.error("gateway.chat PRIMARY transient failure (%d/%d) error=%s",
                          _consecutive_failures, FAILURE_THRESHOLD, type(e).__name__)
             if _consecutive_failures >= FAILURE_THRESHOLD:
@@ -151,6 +162,7 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
         except openai.APIError as e:
             logger.error("gateway.chat PRIMARY client error=%s (no fallback)", type(e).__name__)
             metrics.record_error()
+            MODEL_ERRORS.inc()
             raise
     else:
         logger.warning("gateway.chat CIRCUIT OPEN -> skipping primary")
@@ -178,8 +190,13 @@ def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
             log.info("llm.embed", model=model, n_texts=len(texts), tokens=tokens,
                 latency_ms=latency_ms)
             metrics.record_embed(latency_ms, tokens)
+            MODEL_CALLS.labels(model).inc()
+            MODEL_TOKENS.labels(model).inc(tokens)
+            MODEL_LATENCY.labels(model).observe(latency_ms / 1000)   # Histograms want seconds
             return [item.embedding for item in response.data]
         except openai.APIError as e:
+            metrics.record_error()
+            MODEL_ERRORS.inc()
             logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
             raise
 

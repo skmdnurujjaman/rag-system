@@ -6,6 +6,7 @@ from rag.config import settings
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from prometheus_client import Counter, Histogram
 
 if settings.langfuse_public_key:
     os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
@@ -27,6 +28,16 @@ structlog.configure(
 )
 
 log = structlog.get_logger()
+
+MODEL_CALLS = Counter("rag_model_calls_total", "Model API calls", ["model"])
+MODEL_TOKENS = Counter("rag_model_tokens_total", "Tokens consumed", ["model"])
+MODEL_ERRORS = Counter("rag_model_errors_total", "Model call errors")
+CACHE_HITS = Counter("rag_cache_hits_total", "LLM cache hits")
+MODEL_LATENCY = Histogram(
+    "rag_model_latency_seconds", "Model call latency (seconds)", ["model"],
+    buckets=(0.1, 0.25, 0.5, 1, 2, 4, 8, 16),   # tuned for LLM latencies, not the default web buckets
+)
+
 
 def _percentile(values, p):
     if not values:

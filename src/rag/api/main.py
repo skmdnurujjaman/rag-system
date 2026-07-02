@@ -1,8 +1,10 @@
 import json
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
 
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
@@ -76,5 +78,9 @@ def query_stream(request: QueryRequest):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 @app.get("/metrics")
-def get_metrics():
+def prometheus_metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+@app.get("/metrics/summary")
+def metrics_summary():
     return metrics.summary()
