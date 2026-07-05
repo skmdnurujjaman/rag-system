@@ -14,6 +14,7 @@ from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
 from rag.gateway.llm import chat, start_budget
 from rag.retrieval.query_transform import decompose
+from rag.security.guardrails import check_input
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,10 @@ agent_graph = build_graph()
 def run_agent(request: str, document_id: Optional[int] = None,
               token_budget: int = 0, recursion_limit: int = 15, thread_id: Optional[str] = None) -> dict:
     """Run the agent graph with a per-request token budget and a step (loop) limit."""
+    guard = check_input(request)
+    if not guard.allowed:
+        logger.warning("agent blocked by guardrail category=%s", guard.category)
+        raise ValueError(f"Request blocked by input guardrail: {guard.category}")
     thread_id = thread_id or str(uuid.uuid4())
     start_budget(token_budget)
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": recursion_limit}
