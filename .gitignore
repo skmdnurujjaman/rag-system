@@ -11,3 +11,12 @@ wheels/
 
 # Local secrets / config
 .env
+
+# Local data / uploads
+data/*
+!data/RAG_Study_Notes.pdf
+
+learn/
+Interview-questions.md
+progress-tracker.md
+CLAUDE.md
