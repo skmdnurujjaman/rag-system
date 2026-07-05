@@ -39,6 +39,8 @@ MODEL_LATENCY = Histogram(
     buckets=(0.1, 0.25, 0.5, 1, 2, 4, 8, 16),   # tuned for LLM latencies, not the default web buckets
 )
 GUARDRAIL_BLOCKS = Counter("rag_guardrail_blocks_total", "Requests blocked by input guardrail", ["category"])
+OUTPUT_PII = Counter("rag_output_pii_total", "PII entities redacted in responses", ["type"])
+OUTPUT_FLAGGED = Counter("rag_output_flagged_total", "Responses withheld by moderation", ["category"])
 
 
 

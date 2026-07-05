@@ -6,6 +6,7 @@ from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
 
 from rag.gateway.llm import moderate
+from rag.observability import OUTPUT_FLAGGED, OUTPUT_PII, log
 
 # Ordered: more specific patterns first so they win over generic ones.
 _PII_PATTERNS = {
@@ -53,3 +54,16 @@ def check_output(text: str) -> OutputResult:
     flagged, cats = moderate(text)
     pii = sorted(set(pii_regex) | set(pii_ner))
     return OutputResult(text=text, pii=pii, flagged=flagged, categories=cats)
+
+def guard_output(text: str) -> OutputResult:
+    """check_output + record metrics/logs. Caller inspects .flagged to choose its response."""
+    out = check_output(text)
+    for t in out.pii:
+        OUTPUT_PII.labels(t).inc()
+    if out.pii:
+        log.warning("output.pii_redacted", types=out.pii)
+    if out.flagged:
+        for c in out.categories:
+            OUTPUT_FLAGGED.labels(c).inc()
+        log.warning("output.moderation_flagged", categories=out.categories)
+    return out

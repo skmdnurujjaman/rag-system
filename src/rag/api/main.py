@@ -12,7 +12,7 @@ from rag.generation.answer import generate_answer_stream
 from rag.observability import GUARDRAIL_BLOCKS, log, metrics
 from rag.retrieval.search import retrieve
 from rag.security.guardrails import check_input
-from rag.security.output_guard import check_output
+from rag.security.output_guard import guard_output
 
 app = FastAPI(title="Agentic RAG")
 
@@ -57,11 +57,8 @@ def essay(request: EssayRequest) -> EssayResponse:
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
     result = write_essay(request.topic, top_k=request.top_k, max_words=request.max_words)
-    out = check_output(result["essay"])
-    if out.pii:
-        log.warning("output.pii_redacted", types=out.pii)
+    out = guard_output(result["essay"])
     if out.flagged:
-        log.warning("output.moderation_flagged", categories=out.categories)
         return EssayResponse(answer="I can't provide that response.", sources=[])
     return EssayResponse(essay=out.text, sources=result["sources"])
 
@@ -71,11 +68,8 @@ def summarize(request: SummarizeRequest) -> SummarizeResponse:
         summary = summarize_document(request.document_id, max_words=request.max_words)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    out = check_output(summary)
-    if out.pii:
-        log.warning("output.pii_redacted", types=out.pii)
+    out = guard_output(summary)
     if out.flagged:
-        log.warning("output.moderation_flagged", categories=out.categories)
         return SummarizeResponse(summary="I can't provide that response.")
     return SummarizeResponse(summary=out.text)
 
@@ -87,11 +81,8 @@ def query(request: QueryRequest) -> QueryResponse:
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
     result = answer_question(request.question, top_k=request.top_k)
-    out = check_output(result["answer"])
-    if out.pii:
-        log.warning("output.pii_redacted", types=out.pii)
+    out = guard_output(result["answer"])
     if out.flagged:
-        log.warning("output.moderation_flagged", categories=out.categories)
         return QueryResponse(answer="I can't provide that response.", sources=[])
     return QueryResponse(answer=out.text, sources=result["chunks"])
 
