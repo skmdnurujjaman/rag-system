@@ -1,5 +1,5 @@
 from rag.gateway.llm import chat, chat_stream, route_model
-from rag.security.prompting import fence, UNTRUSTED_CLAUSE
+from rag.security.prompting import UNTRUSTED_CLAUSE, fence
 
 SYSTEM_PROMPT = (
     "You are a helpful assistant that answers questions using ONLY the provided context. "

@@ -2,15 +2,15 @@ import json
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from pydantic import BaseModel
 
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
 from rag.generation.answer import generate_answer_stream
+from rag.observability import GUARDRAIL_BLOCKS, log, metrics
 from rag.retrieval.search import retrieve
-from rag.observability import metrics, log, GUARDRAIL_BLOCKS
 from rag.security.guardrails import check_input
 from rag.security.output_guard import check_output
 

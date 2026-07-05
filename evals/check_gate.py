@@ -3,8 +3,8 @@ import sys
 from evals.run_essay_eval import evaluate as run_essay_eval
 from evals.run_generation_eval import evaluate as run_generation_eval
 from evals.run_retrieval_eval import evaluate as run_retrieval_eval
-from evals.run_summary_eval import evaluate as run_summary_eval
 from evals.run_security_eval import evaluate as run_security_eval
+from evals.run_summary_eval import evaluate as run_summary_eval
 
 # Floors = current baseline (or just below, to tolerate LLM-judge noise).
 # Raise these as you improve — that's the ratchet.

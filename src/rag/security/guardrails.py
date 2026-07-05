@@ -1,7 +1,8 @@
-import re
 import json
+import re
 from dataclasses import dataclass
-from rag.gateway.llm import chat, CHEAP_MODEL
+
+from rag.gateway.llm import CHEAP_MODEL, chat
 from rag.observability import log
 
 MAX_INPUT_CHARS = 2000

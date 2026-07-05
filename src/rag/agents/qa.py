@@ -1,7 +1,7 @@
 from rag.gateway.semantic_cache import SemanticCache
 from rag.generation.answer import generate_answer
-from rag.retrieval.search import retrieve
 from rag.observability import tracer
+from rag.retrieval.search import retrieve
 
 _qa_cache = SemanticCache(threshold=0.82)
 

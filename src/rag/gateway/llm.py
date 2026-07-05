@@ -1,17 +1,24 @@
+import contextvars
 import hashlib
 import json
 import logging
 import time
-import contextvars
+
 import openai
+from langfuse.openai import OpenAI
 
 from rag.config import settings
-from rag.observability import log, metrics, tracer
-from langfuse.openai import OpenAI
 from rag.observability import (
-    CACHE_HITS, MODEL_CALLS, MODEL_ERRORS, MODEL_LATENCY, MODEL_TOKENS,
-    log, metrics, tracer,
+    CACHE_HITS,
+    MODEL_CALLS,
+    MODEL_ERRORS,
+    MODEL_LATENCY,
+    MODEL_TOKENS,
+    log,
+    metrics,
+    tracer,
 )
+
 
 class CostLimitExceeded(Exception):
     pass

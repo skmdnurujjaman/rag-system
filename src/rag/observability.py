@@ -1,12 +1,13 @@
 import os
-import structlog
 import threading
 
-from rag.config import settings
+import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 from prometheus_client import Counter, Histogram
+
+from rag.config import settings
 
 if settings.langfuse_public_key:
     os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key

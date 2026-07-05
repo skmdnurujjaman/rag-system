@@ -1,6 +1,6 @@
 from rag.documents import get_document_text
 from rag.gateway.llm import chat
-from rag.security.prompting import fence, UNTRUSTED_CLAUSE
+from rag.security.prompting import UNTRUSTED_CLAUSE, fence
 
 SUMMARY_SYSTEM = (
     "You write clear, faithful summaries. Summarize ONLY what is in the document — "

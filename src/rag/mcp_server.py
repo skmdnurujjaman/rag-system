@@ -1,6 +1,6 @@
-import psycopg
 import secrets
 
+import psycopg
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
 

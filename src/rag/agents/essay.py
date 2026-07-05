@@ -1,6 +1,6 @@
 from rag.gateway.llm import chat
 from rag.retrieval.search import retrieve
-from rag.security.prompting import fence, UNTRUSTED_CLAUSE
+from rag.security.prompting import UNTRUSTED_CLAUSE, fence
 
 ESSAY_SYSTEM = (
     "You are an essay writer. Write a well-structured, coherent essay on the given topic "

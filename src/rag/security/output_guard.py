@@ -1,10 +1,11 @@
 import re
 from dataclasses import dataclass, field
-from rag.gateway.llm import moderate
 
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
+
+from rag.gateway.llm import moderate
 
 # Ordered: more specific patterns first so they win over generic ones.
 _PII_PATTERNS = {

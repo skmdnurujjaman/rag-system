@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+
 from rag.security.guardrails import check_input
 
 DATASET = Path(__file__).parent / "security_dataset.json"

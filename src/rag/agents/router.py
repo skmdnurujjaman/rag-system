@@ -1,17 +1,17 @@
 import logging
 import operator
 import uuid
-import psycopg
-
-from psycopg.rows import dict_row
-from langgraph.checkpoint.postgres import PostgresSaver
-from rag.config import settings 
 from typing import Annotated, Optional, TypedDict
+
+import psycopg
+from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
+from psycopg.rows import dict_row
 
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
+from rag.config import settings
 from rag.gateway.llm import chat, start_budget
 from rag.retrieval.query_transform import decompose
 from rag.security.guardrails import check_input
