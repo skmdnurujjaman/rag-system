@@ -56,9 +56,14 @@ def essay(request: EssayRequest) -> EssayResponse:
         log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
-
     result = write_essay(request.topic, top_k=request.top_k, max_words=request.max_words)
-    return EssayResponse(essay=result["essay"], sources=result["sources"])
+    out = check_output(result["essay"])
+    if out.pii:
+        log.warning("output.pii_redacted", types=out.pii)
+    if out.flagged:
+        log.warning("output.moderation_flagged", categories=out.categories)
+        return EssayResponse(answer="I can't provide that response.", sources=[])
+    return EssayResponse(essay=out.text, sources=result["sources"])
 
 @app.post("/summarize", response_model=SummarizeResponse)
 def summarize(request: SummarizeRequest) -> SummarizeResponse:
@@ -66,7 +71,13 @@ def summarize(request: SummarizeRequest) -> SummarizeResponse:
         summary = summarize_document(request.document_id, max_words=request.max_words)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return SummarizeResponse(summary=summary)
+    out = check_output(summary)
+    if out.pii:
+        log.warning("output.pii_redacted", types=out.pii)
+    if out.flagged:
+        log.warning("output.moderation_flagged", categories=out.categories)
+        return SummarizeResponse(summary="I can't provide that response.")
+    return SummarizeResponse(summary=out.text)
 
 @app.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest) -> QueryResponse:
