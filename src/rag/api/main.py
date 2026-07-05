@@ -12,6 +12,7 @@ from rag.generation.answer import generate_answer_stream
 from rag.retrieval.search import retrieve
 from rag.observability import metrics, log, GUARDRAIL_BLOCKS
 from rag.security.guardrails import check_input
+from rag.security.output_guard import check_output
 
 app = FastAPI(title="Agentic RAG")
 
@@ -75,7 +76,13 @@ def query(request: QueryRequest) -> QueryResponse:
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
     result = answer_question(request.question, top_k=request.top_k)
-    return QueryResponse(answer=result["answer"], sources=result["chunks"])
+    out = check_output(result["answer"])
+    if out.pii:
+        log.warning("output.pii_redacted", types=out.pii)
+    if out.flagged:
+        log.warning("output.moderation_flagged", categories=out.categories)
+        return QueryResponse(answer="I can't provide that response.", sources=[])
+    return QueryResponse(answer=out.text, sources=result["chunks"])
 
 @app.post("/query/stream")
 def query_stream(request: QueryRequest):

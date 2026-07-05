@@ -200,3 +200,13 @@ def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
             logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
             raise
 
+def moderate(text: str) -> tuple[bool, list[str]]:
+    """Return (flagged, [categories]) via OpenAI's free moderation endpoint."""
+    try:
+        resp = _client.moderations.create(model="omni-moderation-latest", input=text)
+        r = resp.results[0]
+        cats = [k for k, v in r.categories.model_dump().items() if v]
+        return r.flagged, cats
+    except Exception as e:
+        log.warning("moderation.error", error=type(e).__name__)
+        return False, []      # fail-open: don't break the app if moderation is down
