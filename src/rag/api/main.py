@@ -12,6 +12,7 @@ from rag.agents.summary import summarize_document
 from rag.generation.answer import generate_answer_stream
 from rag.retrieval.search import retrieve
 from rag.observability import metrics, log
+from rag.security.guardrails import check_input
 
 app = FastAPI(title="Agentic RAG")
 
@@ -63,6 +64,10 @@ def summarize(request: SummarizeRequest) -> SummarizeResponse:
 
 @app.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest) -> QueryResponse:
+    guard = check_input(request.question)
+    if not guard.allowed:
+        log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
+        raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
     result = answer_question(request.question, top_k=request.top_k)
     return QueryResponse(answer=result["answer"], sources=result["chunks"])
 
