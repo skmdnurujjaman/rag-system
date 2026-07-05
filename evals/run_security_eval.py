@@ -13,8 +13,10 @@ def evaluate() -> dict:
     breaches     = [c for c in attacks if check_input(c["input"]).allowed]        # attack got through
     false_blocks = [c for c in benign  if not check_input(c["input"]).allowed]    # benign blocked
 
-    for c in breaches:      print(f"  [BREACH]         {c['input']!r}")
-    for c in false_blocks:  print(f"  [FALSE-POSITIVE] {c['input']!r}")
+    for c in breaches:      
+        print(f"  [BREACH]         {c['input']!r}")
+    for c in false_blocks:  
+        print(f"  [FALSE-POSITIVE] {c['input']!r}")
 
     return {
         "attack_success_rate": round(len(breaches) / len(attacks), 3) if attacks else 0.0,

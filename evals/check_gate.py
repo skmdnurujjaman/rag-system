@@ -42,7 +42,8 @@ def main() -> None:
         failed = failed or not ok
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {value:.3f}  (min {floor})")
     for name, ceil in MAX_THRESHOLDS.items():
-        ok = actual[name] <= ceil; failed |= not ok
+        ok = actual[name] <= ceil
+        failed |= not ok
         print(f"[{'PASS' if ok else 'FAIL'}] {name}: {actual[name]:.3f}  (max {ceil})")
 
     if failed:
