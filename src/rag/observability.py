@@ -10,7 +10,7 @@ from prometheus_client import Counter, Histogram
 
 if settings.langfuse_public_key:
     os.environ["LANGFUSE_PUBLIC_KEY"] = settings.langfuse_public_key
-    os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key
+    os.environ["LANGFUSE_SECRET_KEY"] = settings.langfuse_secret_key.get_secret_value()
     os.environ["LANGFUSE_HOST"] = settings.langfuse_host
     
 _provider = TracerProvider()

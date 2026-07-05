@@ -1,4 +1,5 @@
 import psycopg
+import secrets
 
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
@@ -44,14 +45,15 @@ class BearerAuth:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
-            if headers.get(b"authorization", b"").decode() != f"Bearer {self.token}":
+            auth = headers.get(b"authorization", b"").decode()
+            if not secrets.compare_digest(auth, f"Bearer {self.token}"):
                 await JSONResponse({"error": "unauthorized"}, status_code=401)(scope, receive, send)
                 return
         await self.app(scope, receive, send)
 
 
 # HTTP (streamable) ASGI app, protected by the bearer token
-app = BearerAuth(mcp.streamable_http_app(), settings.mcp_auth_token)
+app = BearerAuth(mcp.streamable_http_app(), settings.mcp_auth_token.get_secret_value())
 
 
 if __name__ == "__main__":

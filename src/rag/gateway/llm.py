@@ -25,7 +25,8 @@ _budget: contextvars.ContextVar = contextvars.ContextVar("budget", default=None)
 
 
 logger = logging.getLogger(__name__)
-_client = OpenAI(api_key=settings.openai_api_key)
+_llm_api_key= settings.openai_api_key.get_secret_value()
+_client = OpenAI(api_key=_llm_api_key)
 
 CHAT_MODEL = "gpt-4o-mini"
 EMBED_MODEL = "text-embedding-3-small"
@@ -35,7 +36,7 @@ STRONG_MODEL = "gpt-4o"   # set to "gpt-4o-mini" too if you want zero extra cost
 # --- fallback provider: Gemini via its OpenAI-compatible endpoint ---
 FALLBACK_MODEL = "gemini-2.5-flash"  # change to any Gemini model your key supports
 _fallback_client = OpenAI(
-    api_key=settings.gemini_api_key,
+    api_key=_llm_api_key,
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     timeout=30.0,
     max_retries=2,
@@ -58,7 +59,7 @@ COOLDOWN_SECONDS = 30
 _chat_cache: dict[str, str] = {}
 
 _client = OpenAI(
-    api_key=settings.openai_api_key,
+    api_key=_llm_api_key,
     timeout=30.0,      # seconds — fail fast instead of hanging
     max_retries=3,     # SDK retries 429/5xx/connection with exponential backoff
 )

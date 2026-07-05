@@ -1,3 +1,4 @@
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,10 +9,10 @@ class Settings(BaseSettings):
     )
 
     database_url: str
-    openai_api_key: str
-    gemini_api_key: str
-    mcp_auth_token: str
-    langfuse_secret_key: str = ""
+    openai_api_key: SecretStr
+    gemini_api_key: SecretStr
+    mcp_auth_token: SecretStr
+    langfuse_secret_key: SecretStr = SecretStr("")
     langfuse_public_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
 
