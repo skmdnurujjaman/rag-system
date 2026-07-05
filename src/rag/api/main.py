@@ -5,13 +5,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
 from rag.generation.answer import generate_answer_stream
 from rag.retrieval.search import retrieve
-from rag.observability import metrics, log
+from rag.observability import metrics, log, GUARDRAIL_BLOCKS
 from rag.security.guardrails import check_input
 
 app = FastAPI(title="Agentic RAG")
@@ -51,6 +50,12 @@ class EssayResponse(BaseModel):
     
 @app.post("/essay", response_model=EssayResponse)
 def essay(request: EssayRequest) -> EssayResponse:
+    guard = check_input(request.topic)
+    if not guard.allowed:
+        log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
+        GUARDRAIL_BLOCKS.labels(guard.category).inc()
+        raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
+
     result = write_essay(request.topic, top_k=request.top_k, max_words=request.max_words)
     return EssayResponse(essay=result["essay"], sources=result["sources"])
 
@@ -67,6 +72,7 @@ def query(request: QueryRequest) -> QueryResponse:
     guard = check_input(request.question)
     if not guard.allowed:
         log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
+        GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
     result = answer_question(request.question, top_k=request.top_k)
     return QueryResponse(answer=result["answer"], sources=result["chunks"])

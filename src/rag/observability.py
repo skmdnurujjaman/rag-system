@@ -37,6 +37,8 @@ MODEL_LATENCY = Histogram(
     "rag_model_latency_seconds", "Model call latency (seconds)", ["model"],
     buckets=(0.1, 0.25, 0.5, 1, 2, 4, 8, 16),   # tuned for LLM latencies, not the default web buckets
 )
+GUARDRAIL_BLOCKS = Counter("rag_guardrail_blocks_total", "Requests blocked by input guardrail", ["category"])
+
 
 
 def _percentile(values, p):
