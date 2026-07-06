@@ -4,7 +4,9 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 
+from rag.db.pool import pool
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
@@ -13,7 +15,6 @@ from rag.observability import GUARDRAIL_BLOCKS, log, metrics
 from rag.retrieval.search import retrieve
 from rag.security.guardrails import check_input
 from rag.security.output_guard import guard_output
-
 app = FastAPI(title="Agentic RAG")
 
 
@@ -49,49 +50,57 @@ class EssayResponse(BaseModel):
     essay: str
     sources: list[Source]
     
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await pool.open()        # startup: open the async pool (replaces the old open=True)
+    yield
+    await pool.close()       # shutdown: drain and close connections
+
+app = FastAPI(title="Agentic RAG", lifespan=lifespan)   # was: FastAPI(title="Agentic RAG")
+
 @app.post("/essay", response_model=EssayResponse)
-def essay(request: EssayRequest) -> EssayResponse:
-    guard = check_input(request.topic)
+async def essay(request: EssayRequest) -> EssayResponse:
+    guard = await check_input(request.topic)
     if not guard.allowed:
         log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
-    result = write_essay(request.topic, top_k=request.top_k, max_words=request.max_words)
-    out = guard_output(result["essay"])
+    result = await write_essay(request.topic, top_k=request.top_k, max_words=request.max_words)
+    out = await guard_output(result["essay"])
     if out.flagged:
         return EssayResponse(answer="I can't provide that response.", sources=[])
     return EssayResponse(essay=out.text, sources=result["sources"])
 
 @app.post("/summarize", response_model=SummarizeResponse)
-def summarize(request: SummarizeRequest) -> SummarizeResponse:
+async def summarize(request: SummarizeRequest) -> SummarizeResponse:
     try:
-        summary = summarize_document(request.document_id, max_words=request.max_words)
+        summary = await summarize_document(request.document_id, max_words=request.max_words)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    out = guard_output(summary)
+    out = await guard_output(summary)
     if out.flagged:
         return SummarizeResponse(summary="I can't provide that response.")
     return SummarizeResponse(summary=out.text)
 
 @app.post("/query", response_model=QueryResponse)
-def query(request: QueryRequest) -> QueryResponse:
-    guard = check_input(request.question)
+async def query(request: QueryRequest) -> QueryResponse:
+    guard = await check_input(request.question)
     if not guard.allowed:
         log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
-    result = answer_question(request.question, top_k=request.top_k)
-    out = guard_output(result["answer"])
+    result = await answer_question(request.question, top_k=request.top_k)
+    out = await guard_output(result["answer"])
     if out.flagged:
         return QueryResponse(answer="I can't provide that response.", sources=[])
     return QueryResponse(answer=out.text, sources=result["chunks"])
 
 @app.post("/query/stream")
-def query_stream(request: QueryRequest):
-    chunks = retrieve(request.question, top_k=request.top_k)
+async def query_stream(request: QueryRequest):
+    chunks = await retrieve(request.question, top_k=request.top_k)
 
-    def event_stream():
-        for token in generate_answer_stream(request.question, chunks):
+    async def event_stream():
+        async for token in generate_answer_stream(request.question, chunks):
             yield f"data: {json.dumps(token)}\n\n"
         yield "data: [DONE]\n\n"
 
