@@ -5,7 +5,7 @@ import logging
 import time
 
 import openai
-from langfuse.openai import OpenAI
+from langfuse.openai import AsyncOpenAI
 
 from rag.config import settings
 from rag.observability import (
@@ -33,7 +33,8 @@ _budget: contextvars.ContextVar = contextvars.ContextVar("budget", default=None)
 
 logger = logging.getLogger(__name__)
 _llm_api_key= settings.openai_api_key.get_secret_value()
-_client = OpenAI(api_key=_llm_api_key)
+_fallback_llm_api_key= settings.gemini_api_key.get_secret_value()
+_client = AsyncOpenAI(api_key=_llm_api_key)
 
 CHAT_MODEL = "gpt-4o-mini"
 EMBED_MODEL = "text-embedding-3-small"
@@ -42,8 +43,8 @@ STRONG_MODEL = "gpt-4o"   # set to "gpt-4o-mini" too if you want zero extra cost
 
 # --- fallback provider: Gemini via its OpenAI-compatible endpoint ---
 FALLBACK_MODEL = "gemini-2.5-flash"  # change to any Gemini model your key supports
-_fallback_client = OpenAI(
-    api_key=_llm_api_key,
+_fallback_client = AsyncOpenAI(
+    api_key=_fallback_llm_api_key,
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     timeout=30.0,
     max_retries=2,
@@ -65,7 +66,7 @@ COOLDOWN_SECONDS = 30
 
 _chat_cache: dict[str, str] = {}
 
-_client = OpenAI(
+_client = AsyncOpenAI(
     api_key=_llm_api_key,
     timeout=30.0,      # seconds — fail fast instead of hanging
     max_retries=3,     # SDK retries 429/5xx/connection with exponential backoff
@@ -101,12 +102,12 @@ def _make_key(payload: dict) -> str:
     blob = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(blob.encode()).hexdigest()
 
-def _complete(client: OpenAI, model: str, messages: list[dict],
+async def _complete(client: AsyncOpenAI, model: str, messages: list[dict],
               temperature: float, max_tokens: int, kwargs: dict) -> str:
     with tracer.start_as_current_span("llm.call") as span:
         span.set_attribute("llm.model", model)
         start = time.perf_counter()
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=model, messages=messages, temperature=temperature,
             max_tokens=max_tokens, **kwargs,
         )
@@ -135,7 +136,7 @@ def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: floa
         if delta:
             yield delta
 
-def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
+async def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
          max_tokens: int = 1024, use_cache: bool = True, **kwargs) -> str:
     global _consecutive_failures, _circuit_open_until
 
@@ -153,7 +154,7 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
 
     if time.time() >= _circuit_open_until:  # circuit closed -> try primary
         try:
-            result = _complete(_client, model, messages, temperature, max_tokens, kwargs)
+            result = await _complete(_client, model, messages, temperature, max_tokens, kwargs)
             _consecutive_failures = 0                      # success resets
             if use_cache:
                 _chat_cache[key] = result
@@ -177,20 +178,20 @@ def chat(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
 
     # --- provider fallback ---
     logger.warning("gateway.chat FALLBACK -> %s", FALLBACK_MODEL)
-    result = _complete(_fallback_client, FALLBACK_MODEL, messages, temperature, max_tokens, kwargs)
+    result = await _complete(_fallback_client, FALLBACK_MODEL, messages, temperature, max_tokens, kwargs)
     if use_cache:
         _chat_cache[key] = result
     return result
 
 
-def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
+async def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
     """Single entry point for all embedding calls."""
     with tracer.start_as_current_span("llm.embed") as span:
         span.set_attribute("llm.model", model)
         logger.info("gateway.embed model=%s texts=%d", model, len(texts))
         try:
             start = time.perf_counter()
-            response = _client.embeddings.create(model=model, input=texts)
+            response = await _client.embeddings.create(model=model, input=texts)
             tokens = response.usage.total_tokens if response.usage else 0
             _record_usage(tokens)
             latency_ms=round((time.perf_counter() - start) * 1000, 1)
@@ -208,10 +209,10 @@ def embed(texts: list[str], model: str = EMBED_MODEL) -> list[list[float]]:
             logger.error("gateway.embed FAILED model=%s error=%s", model, type(e).__name__)
             raise
 
-def moderate(text: str) -> tuple[bool, list[str]]:
+async def moderate(text: str) -> tuple[bool, list[str]]:
     """Return (flagged, [categories]) via OpenAI's free moderation endpoint."""
     try:
-        resp = _client.moderations.create(model="omni-moderation-latest", input=text)
+        resp = await _client.moderations.create(model="omni-moderation-latest", input=text)
         r = resp.results[0]
         cats = [k for k, v in r.categories.model_dump().items() if v]
         return r.flagged, cats

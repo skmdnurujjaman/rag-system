@@ -10,14 +10,14 @@ mcp = FastMCP("rag", host="127.0.0.1", port=8001)   # 8001 so it won't clash wit
 
 
 @mcp.tool()
-def search_documents(query: str, top_k: int = 5) -> str:
+async def search_documents(query: str, top_k: int = 5) -> str:
     """Search the ingested documents and return the most relevant passages for a query."""
-    chunks = retrieve(query, top_k=top_k)
+    chunks = await retrieve(query, top_k=top_k)
     return "\n\n".join(f"[{i + 1}] {c['content']}" for i, c in enumerate(chunks))
 
 
 @mcp.tool()
-def delete_document(document_id: int, confirm: bool = False) -> str:
+async def delete_document(document_id: int, confirm: bool = False) -> str:
     """Permanently delete a document and all its chunks. HIGH-STAKES and irreversible.
 
     Safety: do NOT delete without user approval. Call once with confirm=false to preview the
@@ -27,8 +27,8 @@ def delete_document(document_id: int, confirm: bool = False) -> str:
         return (f"⚠️ This will PERMANENTLY delete document {document_id} and all its chunks — "
                 f"this cannot be undone. If the user approves, call again with confirm=true.")
 
-    with pool.connection() as conn, conn.cursor() as cur:
-        cur.execute("DELETE FROM documents WHERE id = %s", (document_id,))
+    async with pool.connection() as conn, conn.cursor() as cur:
+        await cur.execute("DELETE FROM documents WHERE id = %s", (document_id,))
         deleted = cur.rowcount
     if deleted:
         return f"Deleted document {document_id} ({deleted} row; chunks removed via cascade)."
