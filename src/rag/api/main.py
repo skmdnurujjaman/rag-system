@@ -73,9 +73,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Agentic RAG", lifespan=lifespan)   # was: FastAPI(title="Agentic RAG")
 
-async def rate_limit(request: Request):
-    client_id = request.client.host          # IP for now; becomes per-API-key after auth (Step 6)
-    remaining = await check_rate_limit(client_id, RATE_LIMIT, RATE_WINDOW)
+async def rate_limit(tenant_id: int = Depends(require_tenant)):
+    remaining = await check_rate_limit(f"tenant:{tenant_id}", RATE_LIMIT, RATE_WINDOW)
     if remaining < 0:
         raise HTTPException(status_code=429, detail="Rate limit exceeded.",
                             headers={"Retry-After": str(RATE_WINDOW)})
