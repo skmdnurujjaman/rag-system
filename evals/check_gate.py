@@ -1,5 +1,6 @@
 import sys
-
+import asyncio
+from rag.db.pool import pool
 from evals.run_essay_eval import evaluate as run_essay_eval
 from evals.run_generation_eval import evaluate as run_generation_eval
 from evals.run_retrieval_eval import evaluate as run_retrieval_eval
@@ -21,19 +22,20 @@ MAX_THRESHOLDS = {          # value <= ceiling
     "false_positive_rate": 0.20,    # tolerate a little over-blocking
 }
 
-def main() -> None:
-    retrieval = run_retrieval_eval()
-    generation = run_generation_eval()
-    actual = {
-        "recall_at_k": retrieval["recall_at_k"],
-        "faithfulness": generation["faithfulness"],
-        "correctness": generation["correctness"],
-        "summary_faithfulness": run_summary_eval()["summary_faithfulness"],
-        "essay_faithfulness": run_essay_eval()["essay_faithfulness"],
-        **run_security_eval()
-    }
+async def main() -> None:
+    async with pool:
+        retrieval = await run_retrieval_eval()
+        generation = await run_generation_eval()
+        actual = {
+            "recall_at_k": retrieval["recall_at_k"],
+            "faithfulness": generation["faithfulness"],
+            "correctness": generation["correctness"],
+            "summary_faithfulness": (await run_summary_eval())["summary_faithfulness"],
+            "essay_faithfulness": (await run_essay_eval())["essay_faithfulness"],
+            **(await run_security_eval()),
+        }
 
-
+    # gate comparison is pure logic — fine after the pool closes
     print("\n=== EVAL GATE ===")
     failed = False
     for name, floor in MIN_THRESHOLDS.items():
@@ -53,4 +55,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

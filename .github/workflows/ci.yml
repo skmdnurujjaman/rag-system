@@ -38,7 +38,7 @@ jobs:
       - name: Apply schema
         run: psql "$DATABASE_URL" -f src/rag/db/schema.sql
       - name: Ingest eval document
-        run: uv run python -c "from rag.ingestion.pipeline import ingest_pdf; ingest_pdf('data/RAG_Study_Notes.pdf')"
+        run: uv run python -m rag.ingestion.pipeline data/RAG_Study_Notes.pdf
       - name: Eval gate
         run: uv run python -m evals.check_gate
   secret-scan:

@@ -8,12 +8,12 @@ TOPICS = [
 ]
 
 
-def evaluate() -> dict:
+async def evaluate() -> dict:
     scores = []
     for topic in TOPICS:
-        result = write_essay(topic, max_words=300)
+        result = await write_essay(topic, max_words=300)
         chunks = [c["content"] for c in result["sources"]]
-        f = judge_faithfulness(chunks, result["essay"])
+        f = await judge_faithfulness(chunks, result["essay"])
         scores.append(f.score)
         print(f"'{topic[:45]}...': faithfulness={f.score}/5 — {f.reasoning}")
     avg = sum(scores) / len(scores)
@@ -23,4 +23,9 @@ def evaluate() -> dict:
 
 
 if __name__ == "__main__":
-    evaluate()
+    import asyncio
+    from rag.db.pool import pool
+    async def _main():
+        async with pool:
+            await evaluate()
+    asyncio.run(_main())

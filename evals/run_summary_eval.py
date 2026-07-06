@@ -5,11 +5,11 @@ from rag.documents import get_document_chunks
 DOCUMENT_IDS = [1]  # add more as you ingest more docs
 
 
-def evaluate() -> dict:
+async def evaluate() -> dict:
     scores = []
     for doc_id in DOCUMENT_IDS:
-        summary = summarize_document(doc_id, max_words=150)
-        f = judge_faithfulness(get_document_chunks(doc_id), summary)
+        summary = await summarize_document(doc_id, max_words=150)
+        f = await judge_faithfulness(await get_document_chunks(doc_id), summary)
         scores.append(f.score)
         print(f"doc {doc_id}: faithfulness={f.score}/5 — {f.reasoning}")
     avg = sum(scores) / len(scores)
@@ -19,4 +19,9 @@ def evaluate() -> dict:
 
 
 if __name__ == "__main__":
-    evaluate()
+    import asyncio
+    from rag.db.pool import pool
+    async def _main():
+        async with pool:
+            await evaluate()
+    asyncio.run(_main())

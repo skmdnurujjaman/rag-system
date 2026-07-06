@@ -21,17 +21,17 @@ def load_dataset() -> list[GoldenItem]:
     return [GoldenItem(**x) for x in json.loads(DATASET_PATH.read_text())]
 
 
-def evaluate(top_k: int = TOP_K) -> dict:
+async def evaluate(top_k: int = TOP_K) -> dict:
     dataset = load_dataset()
     corr_scores, faith_scores = [], []
 
     for item in dataset:
-        result = answer_question(item.question, top_k=top_k)
+        result = await answer_question(item.question, top_k=top_k)
         answer = result["answer"]
         chunks = [c["content"] for c in result["chunks"]]
 
-        c = judge_correctness(item.question, item.expected_answer, answer)
-        f = judge_faithfulness(chunks, answer)
+        c = await judge_correctness(item.question, item.expected_answer, answer)
+        f = await judge_faithfulness(chunks, answer)
         corr_scores.append(c.score)
         faith_scores.append(f.score)
 
@@ -50,4 +50,9 @@ def evaluate(top_k: int = TOP_K) -> dict:
 
 
 if __name__ == "__main__":
-    evaluate()
+    import asyncio
+    from rag.db.pool import pool
+    async def _main():
+        async with pool:
+            await evaluate()
+    asyncio.run(_main())

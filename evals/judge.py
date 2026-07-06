@@ -9,8 +9,8 @@ class Judgment(BaseModel):
     score: int
     reasoning: str
 
-def _judge(system_prompt: str, user_prompt: str) -> Judgment:
-    content = chat(
+async def _judge(system_prompt: str, user_prompt: str) -> Judgment:
+    content = await chat(
         [{"role": "system", "content": system_prompt},
          {"role": "user", "content": user_prompt}],
         temperature=0, max_tokens=512, response_format={"type": "json_object"},
@@ -28,9 +28,9 @@ Score 1-5:
 Respond ONLY as JSON: {"score": <int 1-5>, "reasoning": "<one sentence>"}"""
 
 
-def judge_correctness(question: str, expected: str, generated: str) -> Judgment:
+async def judge_correctness(question: str, expected: str, generated: str) -> Judgment:
     user = f"Question: {question}\n\nEXPECTED answer: {expected}\n\nGENERATED answer: {generated}"
-    return _judge(CORRECTNESS_SYSTEM, user)
+    return await _judge(CORRECTNESS_SYSTEM, user)
 
 
 FAITHFULNESS_SYSTEM = """You check a GENERATED answer for hallucination against CONTEXT passages.
@@ -45,7 +45,7 @@ Note: answering "I don't know" when the context lacks the answer is FULLY FAITHF
 Respond ONLY as JSON: {"score": <int 1-5>, "reasoning": "<one sentence>"}"""
 
 
-def judge_faithfulness(context_chunks: list[str], generated: str) -> Judgment:
+async def judge_faithfulness(context_chunks: list[str], generated: str) -> Judgment:
     context = "\n\n".join(f"[{i + 1}] {c}" for i, c in enumerate(context_chunks))
     user = f"CONTEXT:\n{context}\n\nGENERATED answer: {generated}"
-    return _judge(FAITHFULNESS_SYSTEM, user)
+    return await _judge(FAITHFULNESS_SYSTEM, user)

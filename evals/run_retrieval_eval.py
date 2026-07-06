@@ -31,12 +31,12 @@ def is_relevant(chunk_content: str, snippets: list[str]) -> bool:
     return any(normalize(s) in content for s in snippets)
 
 
-def evaluate(top_k: int = TOP_K) -> dict:
+async def evaluate(top_k: int = TOP_K) -> dict:
     dataset = load_dataset()
     recalls, mrrs, precisions = [], [], []
 
     for item in dataset:
-        results = retrieve(item.question, top_k=top_k)
+        results = await retrieve(item.question, top_k=top_k)
         relevance = [is_relevant(r["content"], item.relevant_snippets) for r in results]
 
         recall = 1.0 if any(relevance) else 0.0
@@ -74,4 +74,9 @@ def evaluate(top_k: int = TOP_K) -> dict:
 
 
 if __name__ == "__main__":
-    evaluate()
+    import asyncio
+    from rag.db.pool import pool
+    async def _main():
+        async with pool:
+            await evaluate()
+    asyncio.run(_main())
