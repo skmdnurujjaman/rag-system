@@ -39,8 +39,11 @@ services:
     ports: ["9093:9093"]
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-
-
+  
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    ports: ["6379:6379"]
 
 volumes:
   pgdata:

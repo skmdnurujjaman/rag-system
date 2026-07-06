@@ -15,5 +15,6 @@ class Settings(BaseSettings):
     langfuse_secret_key: SecretStr = SecretStr("")
     langfuse_public_key: str = ""
     langfuse_host: str = "https://cloud.langfuse.com"
+    redis_url: str = "redis://localhost:6379"
 
 settings = Settings()

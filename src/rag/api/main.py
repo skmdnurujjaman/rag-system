@@ -1,7 +1,7 @@
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Depends, Request
 from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
@@ -15,9 +15,10 @@ from rag.observability import GUARDRAIL_BLOCKS, log, metrics
 from rag.retrieval.search import retrieve
 from rag.security.guardrails import check_input
 from rag.security.output_guard import guard_output
+from rag.ratelimit import check_rate_limit
 
-app = FastAPI(title="Agentic RAG")
-
+RATE_LIMIT = 5        # requests…
+RATE_WINDOW = 60       # …per 60s per client
 
 class QueryRequest(BaseModel):
     question: str
@@ -59,7 +60,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Agentic RAG", lifespan=lifespan)   # was: FastAPI(title="Agentic RAG")
 
-@app.post("/essay", response_model=EssayResponse)
+async def rate_limit(request: Request):
+    client_id = request.client.host          # IP for now; becomes per-API-key after auth (Step 6)
+    remaining = await check_rate_limit(client_id, RATE_LIMIT, RATE_WINDOW)
+    if remaining < 0:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded.",
+                            headers={"Retry-After": str(RATE_WINDOW)})
+        
+@app.post("/essay", response_model=EssayResponse, dependencies=[Depends(rate_limit)])
 async def essay(request: EssayRequest) -> EssayResponse:
     guard = await check_input(request.topic)
     if not guard.allowed:
@@ -72,7 +80,7 @@ async def essay(request: EssayRequest) -> EssayResponse:
         return EssayResponse(answer="I can't provide that response.", sources=[])
     return EssayResponse(essay=out.text, sources=result["sources"])
 
-@app.post("/summarize", response_model=SummarizeResponse)
+@app.post("/summarize", response_model=SummarizeResponse, dependencies=[Depends(rate_limit)])
 async def summarize(request: SummarizeRequest) -> SummarizeResponse:
     try:
         summary = await summarize_document(request.document_id, max_words=request.max_words)
@@ -83,7 +91,7 @@ async def summarize(request: SummarizeRequest) -> SummarizeResponse:
         return SummarizeResponse(summary="I can't provide that response.")
     return SummarizeResponse(summary=out.text)
 
-@app.post("/query", response_model=QueryResponse)
+@app.post("/query", response_model=QueryResponse, dependencies=[Depends(rate_limit)])
 async def query(request: QueryRequest) -> QueryResponse:
     guard = await check_input(request.question)
     if not guard.allowed:
