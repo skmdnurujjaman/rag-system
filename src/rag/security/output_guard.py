@@ -48,16 +48,16 @@ def redact_pii_ner(text: str) -> tuple[str, list[str]]:
     types = sorted({r.entity_type for r in results})
     return clean, types
 
-def check_output(text: str) -> OutputResult:
+async def check_output(text: str) -> OutputResult:
     text, pii_regex = redact_pii(text)      # layer 1: deterministic structured PII
     text, pii_ner = redact_pii_ner(text)    # layer 2: NER names/locations/etc.
-    flagged, cats = moderate(text)
+    flagged, cats = await moderate(text)
     pii = sorted(set(pii_regex) | set(pii_ner))
     return OutputResult(text=text, pii=pii, flagged=flagged, categories=cats)
 
-def guard_output(text: str) -> OutputResult:
+async def guard_output(text: str) -> OutputResult:
     """check_output + record metrics/logs. Caller inspects .flagged to choose its response."""
-    out = check_output(text)
+    out = await check_output(text)
     for t in out.pii:
         OUTPUT_PII.labels(t).inc()
     if out.pii:

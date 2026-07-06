@@ -8,14 +8,14 @@ SUMMARY_SYSTEM = (
 )
 
 
-def summarize_document(document_id: int, max_words: int = 200) -> str:
-    text = get_document_text(document_id)
+async def summarize_document(document_id: int, max_words: int = 200) -> str:
+    text = await get_document_text(document_id)
     if not text:
         raise ValueError(f"No content found for document_id={document_id}")
     marker, fenced = fence(text)
     system = SUMMARY_SYSTEM + UNTRUSTED_CLAUSE.format(marker=marker)
     user_message = f"Summarize the document fenced by {marker} in about {max_words} words.\n\n{fenced}"
-    return chat(
+    return await chat(
         [{"role": "system", "content": system},
          {"role": "user", "content": user_message}],
         temperature=0, max_tokens=512,

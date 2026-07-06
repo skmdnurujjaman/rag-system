@@ -123,15 +123,15 @@ async def _complete(client: AsyncOpenAI, model: str, messages: list[dict],
 
         return response.choices[0].message.content
 
-def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
+async def chat_stream(messages: list[dict], model: str = CHAT_MODEL, temperature: float = 0,
                 max_tokens: int = 1024, **kwargs):
     """Stream the assistant's response token-by-token (a generator)."""
     logger.info("gateway.chat_stream model=%s messages=%d", model, len(messages))
-    stream = _client.chat.completions.create(
+    stream = await _client.chat.completions.create(
         model=model, messages=messages, temperature=temperature,
         max_tokens=max_tokens, stream=True, **kwargs,
     )
-    for chunk in stream:
+    async for chunk in stream:
         delta = chunk.choices[0].delta.content
         if delta:
             yield delta

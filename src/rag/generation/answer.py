@@ -20,11 +20,12 @@ def _build_messages(question: str, chunks: list[dict]) -> list[dict]:
         {"role": "user", "content": user_message},
     ]
 
-def generate_answer(question: str, chunks: list[dict]) -> str:
-    return chat(_build_messages(question, chunks), model=route_model(question),
+async def generate_answer(question: str, chunks: list[dict]) -> str:
+    return await chat(_build_messages(question, chunks), model=route_model(question),
                 temperature=0, max_tokens=1024)
 
 
-def generate_answer_stream(question: str, chunks: list[dict]):
-    yield from chat_stream(_build_messages(question, chunks), model=route_model(question),
-                           temperature=0, max_tokens=1024)
+async def generate_answer_stream(question: str, chunks: list[dict]):
+    async for token in chat_stream(_build_messages(question, chunks), model=route_model(question),
+                                   temperature=0, max_tokens=1024):
+        yield token

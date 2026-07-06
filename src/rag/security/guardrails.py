@@ -49,9 +49,9 @@ def _heuristic(text: str) -> GuardResult | None:
             return GuardResult(False, f"matched pattern {rx.pattern!r}", "injection")
     return None
 
-def _classify(text: str) -> GuardResult | None:
+async def _classify(text: str) -> GuardResult | None:
     try:
-        raw = chat(
+        raw = await chat(
             [{"role": "system", "content": _CLASSIFIER_SYSTEM},
              {"role": "user", "content": text}],
             model=CHEAP_MODEL, temperature=0, max_tokens=100,
@@ -65,9 +65,12 @@ def _classify(text: str) -> GuardResult | None:
         return GuardResult(False, verdict.get("reason", "classifier flagged"), "injection")
     return None
 
-def check_input(text: str) -> GuardResult:
-    for layer in (_validate, _heuristic, _classify):
+async def check_input(text: str) -> GuardResult:
+    for layer in (_validate, _heuristic):
         result = layer(text)
         if result is not None:
             return result
+    result = await _classify(text)             # then the ASYNC classifier
+    if result is not None:
+        return result
     return GuardResult(True)

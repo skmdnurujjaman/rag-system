@@ -18,10 +18,10 @@ class SemanticCache:
         self._embeddings: list[list[float]] = []
         self._values: list[object] = []
 
-    def get(self, query: str) -> object | None:
+    async def get(self, query: str) -> object | None:
         if not self._embeddings:
             return None
-        q = embed([query])[0]
+        q = (await embed([query]))[0]
         best_i, best_sim = -1, -1.0
         for i, e in enumerate(self._embeddings):
             sim = _cosine(q, e)
@@ -30,6 +30,6 @@ class SemanticCache:
         logger.info("semantic_cache best_sim=%.3f threshold=%.2f", best_sim, self.threshold)
         return self._values[best_i] if best_sim >= self.threshold else None
 
-    def set(self, query: str, value: object) -> None:
-        self._embeddings.append(embed([query])[0])
+    async def set(self, query: str, value: object) -> None:
+        self._embeddings.append((await embed([query]))[0])
         self._values.append(value)
