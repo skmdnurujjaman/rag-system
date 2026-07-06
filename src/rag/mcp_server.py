@@ -1,11 +1,10 @@
 import secrets
 
-import psycopg
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
-
 from rag.config import settings
 from rag.retrieval.search import retrieve
+from rag.db.pool import pool
 
 mcp = FastMCP("rag", host="127.0.0.1", port=8001)   # 8001 so it won't clash with the RAG API on 8000
 
@@ -28,7 +27,7 @@ def delete_document(document_id: int, confirm: bool = False) -> str:
         return (f"⚠️ This will PERMANENTLY delete document {document_id} and all its chunks — "
                 f"this cannot be undone. If the user approves, call again with confirm=true.")
 
-    with psycopg.connect(settings.database_url) as conn, conn.cursor() as cur:
+    with pool.connection() as conn, conn.cursor() as cur:
         cur.execute("DELETE FROM documents WHERE id = %s", (document_id,))
         deleted = cur.rowcount
     if deleted:

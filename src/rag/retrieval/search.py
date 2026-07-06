@@ -1,11 +1,8 @@
-import psycopg
 from pgvector.psycopg import register_vector
-
-from rag.config import settings
 from rag.ingestion.embedder import embed_texts
 from rag.observability import tracer
 from rag.retrieval.reranker import rerank
-
+from rag.db.pool import pool
 
 def _rrf_fuse(result_lists: list[list[dict]], top_k: int, rrf_k: int = 60) -> list[dict]:
     """Fuse any number of ranked result lists via Reciprocal Rank Fusion."""
@@ -34,7 +31,7 @@ def search(query: str, top_k: int = 5) -> list[dict]:
     """Find the top_k chunks most similar to the query."""
     query_embedding = embed_texts([query])[0]
 
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         register_vector(conn)
         with conn.cursor() as cur:
             cur.execute(
@@ -55,7 +52,7 @@ def search(query: str, top_k: int = 5) -> list[dict]:
 
 def keyword_search(query: str, top_k: int = 5) -> list[dict]:
     """Sparse keyword search via Postgres full-text search (OR over query terms)."""
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """

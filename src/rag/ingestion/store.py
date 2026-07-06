@@ -1,12 +1,9 @@
-import psycopg
 from pgvector.psycopg import register_vector
-
-from rag.config import settings
-
+from rag.db.pool import pool
 
 def store_document(filename: str, chunks: list[str], embeddings: list[list[float]]) -> int:
     """Store a document plus its chunks and embeddings. Returns the new document id."""
-    with psycopg.connect(settings.database_url) as conn:
+    with pool.connection() as conn:
         register_vector(conn)
         with conn.cursor() as cur:
             cur.execute(

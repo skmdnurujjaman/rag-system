@@ -1,11 +1,8 @@
-import psycopg
-
-from rag.config import settings
-
+from rag.db.pool import pool
 
 def get_document_chunks(document_id: int) -> list[str]:
     """Return a document's chunks, in order."""
-    with psycopg.connect(settings.database_url) as conn, conn.cursor() as cur:
+    with pool.connection() as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT content FROM chunks WHERE document_id = %s ORDER BY chunk_index",
             (document_id,),
