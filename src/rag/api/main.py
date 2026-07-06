@@ -1,20 +1,21 @@
 import json
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
-from contextlib import asynccontextmanager
 
-from rag.db.pool import pool
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
+from rag.db.pool import pool
 from rag.generation.answer import generate_answer_stream
 from rag.observability import GUARDRAIL_BLOCKS, log, metrics
 from rag.retrieval.search import retrieve
 from rag.security.guardrails import check_input
 from rag.security.output_guard import guard_output
+
 app = FastAPI(title="Agentic RAG")
 
 

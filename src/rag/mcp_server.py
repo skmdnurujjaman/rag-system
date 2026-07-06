@@ -2,9 +2,10 @@ import secrets
 
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
+
 from rag.config import settings
-from rag.retrieval.search import retrieve
 from rag.db.pool import pool
+from rag.retrieval.search import retrieve
 
 mcp = FastMCP("rag", host="127.0.0.1", port=8001)   # 8001 so it won't clash with the RAG API on 8000
 

@@ -1,4 +1,5 @@
 import asyncio
+
 from rag.db.pool import pool
 from rag.gateway.llm import embed
 from rag.ingestion.store import store_document
@@ -14,5 +15,5 @@ poison2 = (
 async def main():
     async with pool:
         emb = await embed([poison2])
-        print("Stored poisoned doc id:", await store_document("malicious.pdf", [poison], emb))
+        print("Stored poisoned doc id:", await store_document("malicious.pdf", [poison2], emb))
 asyncio.run(main())

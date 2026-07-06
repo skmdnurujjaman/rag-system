@@ -1,13 +1,14 @@
+import asyncio
 import logging
 import operator
 import uuid
-import asyncio
-
-from psycopg import AsyncConnection  
 from typing import Annotated, Optional, TypedDict
+
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
+from psycopg import AsyncConnection
 from psycopg.rows import dict_row
+
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document

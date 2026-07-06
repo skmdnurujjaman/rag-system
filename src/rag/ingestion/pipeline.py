@@ -34,7 +34,9 @@ async def ingest_pdf(path: str) -> int:
 
 
 if __name__ == "__main__":
-    import asyncio, sys
+    import asyncio
+    import sys
+
     from rag.db.pool import pool
     async def _main():
         async with pool:                        # opens + closes the async pool

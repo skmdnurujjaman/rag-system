@@ -1,4 +1,5 @@
 from psycopg_pool import AsyncConnectionPool
+
 from rag.config import settings
 
 # One pool for the whole process. Opens min_size connections up front and reuses them.

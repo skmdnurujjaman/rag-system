@@ -51,6 +51,7 @@ async def evaluate(top_k: int = TOP_K) -> dict:
 
 if __name__ == "__main__":
     import asyncio
+
     from rag.db.pool import pool
     async def _main():
         async with pool:

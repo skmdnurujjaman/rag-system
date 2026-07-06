@@ -1,5 +1,6 @@
 from rag.db.pool import pool
 
+
 async def get_document_chunks(document_id: int) -> list[str]:
     """Return a document's chunks, in order."""
     async with pool.connection() as conn, conn.cursor() as cur:

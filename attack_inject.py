@@ -1,4 +1,5 @@
 import asyncio
+
 from rag.db.pool import pool
 from rag.gateway.llm import embed
 from rag.ingestion.store import store_document

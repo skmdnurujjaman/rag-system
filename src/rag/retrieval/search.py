@@ -1,9 +1,12 @@
 import asyncio
+
 from pgvector.psycopg import register_vector_async
+
+from rag.db.pool import pool
 from rag.ingestion.embedder import embed_texts
 from rag.observability import tracer
 from rag.retrieval.reranker import rerank
-from rag.db.pool import pool
+
 
 def _rrf_fuse(result_lists: list[list[dict]], top_k: int, rrf_k: int = 60) -> list[dict]:
     """Fuse any number of ranked result lists via Reciprocal Rank Fusion."""
