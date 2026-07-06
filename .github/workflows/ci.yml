@@ -35,8 +35,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
-      - name: Apply schema
-        run: psql "$DATABASE_URL" -f src/rag/db/schema.sql
+      - name: Run migrations
+        run: uv run alembic upgrade head
       - name: Ingest eval document
         run: uv run python -m rag.ingestion.pipeline data/RAG_Study_Notes.pdf
       - name: Eval gate
