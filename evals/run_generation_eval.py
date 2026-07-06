@@ -8,7 +8,7 @@ from rag.agents.qa import answer_question
 
 DATASET_PATH = Path(__file__).parent / "golden_dataset.json"
 TOP_K = 5
-
+EVAL_TENANT = 1
 
 class GoldenItem(BaseModel):
     id: str
@@ -26,7 +26,7 @@ async def evaluate(top_k: int = TOP_K) -> dict:
     corr_scores, faith_scores = [], []
 
     for item in dataset:
-        result = await answer_question(item.question, top_k=top_k)
+        result = await answer_question(item.question, top_k=top_k, tenant_id=EVAL_TENANT)
         answer = result["answer"]
         chunks = [c["content"] for c in result["chunks"]]
 

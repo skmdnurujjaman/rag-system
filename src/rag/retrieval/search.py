@@ -24,15 +24,15 @@ def _rrf_fuse(result_lists: list[list[dict]], top_k: int, rrf_k: int = 60) -> li
         for cid in ranked
     ]
     
-async def retrieve(query: str, top_k: int = 5, candidates: int = 20) -> list[dict]:
+async def retrieve(query: str, top_k: int = 5, candidates: int = 20, *, tenant_id: int) -> list[dict]:
     """Pipeline: hybrid retrieve a candidate pool → cross-encoder rerank."""
     with tracer.start_as_current_span("retrieve") as span:
         span.set_attribute("retrieve.top_k", top_k)
-        pool = await hybrid_search(query, top_k=candidates)
+        pool = await hybrid_search(query, top_k=candidates, tenant_id=tenant_id)
         # reranker is CPU-bound → offload to a thread so it doesn't block the event loop
         return await asyncio.to_thread(rerank, query, pool, top_k)
 
-async def search(query: str, top_k: int = 5) -> list[dict]:
+async def search(query: str, top_k: int = 5, *, tenant_id: int) -> list[dict]:
     """Find the top_k chunks most similar to the query."""
     query_embedding = (await embed_texts([query]))[0]
 
@@ -42,11 +42,11 @@ async def search(query: str, top_k: int = 5) -> list[dict]:
             await cur.execute(
                 """
                 SELECT id, document_id, content, embedding <=> %s::vector AS distance
-                FROM chunks
+                FROM chunks WHERE tenant_id = %s
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
                 """,
-                (query_embedding, query_embedding, top_k),
+                (query_embedding, tenant_id, query_embedding, top_k),
             )
             rows = await cur.fetchall()
 
@@ -55,7 +55,7 @@ async def search(query: str, top_k: int = 5) -> list[dict]:
         for r in rows
     ]
 
-async def keyword_search(query: str, top_k: int = 5) -> list[dict]:
+async def keyword_search(query: str, top_k: int = 5, *, tenant_id: int) -> list[dict]:
     """Sparse keyword search via Postgres full-text search (OR over query terms)."""
     async with pool.connection() as conn, conn.cursor() as cur:
         await cur.execute(
@@ -72,11 +72,11 @@ async def keyword_search(query: str, top_k: int = 5) -> list[dict]:
             SELECT c.id, c.document_id, c.content,
                     ts_rank_cd(c.content_tsv, q.query) AS score
             FROM chunks c, q
-            WHERE c.content_tsv @@ q.query
+            WHERE c.content_tsv @@ q.query AND c.tenant_id = %s
             ORDER BY score DESC
             LIMIT %s
             """,
-            (query, top_k),
+            (query,tenant_id, top_k),
         )
         rows = await cur.fetchall()
     return [
@@ -85,12 +85,12 @@ async def keyword_search(query: str, top_k: int = 5) -> list[dict]:
     ]
 
 async def hybrid_search(
-    query: str, top_k: int = 5, candidates: int = 20, rrf_k: int = 60
+    query: str, top_k: int = 5, candidates: int = 20, rrf_k: int = 60, *, tenant_id: int
 ) -> list[dict]:
     """Fuse dense (vector) + sparse (keyword) results with Reciprocal Rank Fusion."""
     dense, sparse = await asyncio.gather(
-        search(query, top_k=candidates),
-        keyword_search(query, top_k=candidates),
+        search(query, top_k=candidates, tenant_id=tenant_id),
+        keyword_search(query, top_k=candidates, tenant_id=tenant_id),
     )
     scores: dict[int, float] = {}
     chunks: dict[int, dict] = {}

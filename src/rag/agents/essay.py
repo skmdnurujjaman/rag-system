@@ -9,8 +9,8 @@ ESSAY_SYSTEM = (
     "is thin, stay general rather than fabricating specifics."
 )
 
-async def write_essay(topic: str, top_k: int = 8, max_words: int = 500) -> dict:
-    chunks = await retrieve(topic, top_k=top_k)
+async def write_essay(topic: str, top_k: int = 8, max_words: int = 500, *, tenant_id) -> dict:
+    chunks = await retrieve(topic, top_k=top_k,tenant_id=tenant_id)
     context = "\n\n".join(f"[{i + 1}] {c['content']}" for i, c in enumerate(chunks))
     marker, fenced = fence(context)
     system = ESSAY_SYSTEM + UNTRUSTED_CLAUSE.format(marker=marker)

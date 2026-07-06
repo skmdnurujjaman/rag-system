@@ -17,6 +17,7 @@ from rag.security.guardrails import check_input
 from rag.security.output_guard import guard_output
 from rag.ratelimit import check_rate_limit
 from rag.config import settings
+from rag.auth import require_tenant
 
 from pathlib import Path
 from arq import create_pool
@@ -80,22 +81,22 @@ async def rate_limit(request: Request):
                             headers={"Retry-After": str(RATE_WINDOW)})
         
 @app.post("/essay", response_model=EssayResponse, dependencies=[Depends(rate_limit)])
-async def essay(request: EssayRequest) -> EssayResponse:
+async def essay(request: EssayRequest, tenant_id: int = Depends(require_tenant)) -> EssayResponse:
     guard = await check_input(request.topic)
     if not guard.allowed:
         log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
-    result = await write_essay(request.topic, top_k=request.top_k, max_words=request.max_words)
+    result = await write_essay(request.topic, top_k=request.top_k, max_words=request.max_words, tenant_id=tenant_id)
     out = await guard_output(result["essay"])
     if out.flagged:
         return EssayResponse(answer="I can't provide that response.", sources=[])
     return EssayResponse(essay=out.text, sources=result["sources"])
 
 @app.post("/summarize", response_model=SummarizeResponse, dependencies=[Depends(rate_limit)])
-async def summarize(request: SummarizeRequest) -> SummarizeResponse:
+async def summarize(request: SummarizeRequest, tenant_id: int = Depends(require_tenant)) -> SummarizeResponse:
     try:
-        summary = await summarize_document(request.document_id, max_words=request.max_words)
+        summary = await summarize_document(request.document_id, max_words=request.max_words, tenant_id=tenant_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     out = await guard_output(summary)
@@ -104,21 +105,21 @@ async def summarize(request: SummarizeRequest) -> SummarizeResponse:
     return SummarizeResponse(summary=out.text)
 
 @app.post("/query", response_model=QueryResponse, dependencies=[Depends(rate_limit)])
-async def query(request: QueryRequest) -> QueryResponse:
+async def query(request: QueryRequest, tenant_id: int = Depends(require_tenant)) -> QueryResponse:
     guard = await check_input(request.question)
     if not guard.allowed:
         log.warning("guardrail.blocked", category=guard.category, reason=guard.reason)
         GUARDRAIL_BLOCKS.labels(guard.category).inc()
         raise HTTPException(status_code=400, detail="Request blocked by input guardrail.")
-    result = await answer_question(request.question, top_k=request.top_k)
+    result = await answer_question(request.question, top_k=request.top_k, tenant_id=tenant_id)
     out = await guard_output(result["answer"])
     if out.flagged:
         return QueryResponse(answer="I can't provide that response.", sources=[])
     return QueryResponse(answer=out.text, sources=result["chunks"])
 
 @app.post("/query/stream")
-async def query_stream(request: QueryRequest):
-    chunks = await retrieve(request.question, top_k=request.top_k)
+async def query_stream(request: QueryRequest, tenant_id: int = Depends(require_tenant)):
+    chunks = await retrieve(request.question, top_k=request.top_k, tenant_id=tenant_id)
 
     async def event_stream():
         async for token in generate_answer_stream(request.question, chunks):
@@ -146,10 +147,10 @@ async def alert_webhook(payload: dict):
     return {"ok": True}
 
 @app.post("/documents", response_model=IngestResponse, status_code=202)
-async def upload_document(request: Request, file: UploadFile) -> IngestResponse:
+async def upload_document(request: Request, file: UploadFile, tenant_id: int = Depends(require_tenant)) -> IngestResponse:
     dest = UPLOAD_DIR / file.filename
     dest.write_bytes(await file.read())                 # save the upload locally
-    job = await request.app.state.arq.enqueue_job("ingest_document", str(dest))
+    job = await request.app.state.arq.enqueue_job("ingest_document", str(dest), tenant_id)
     return IngestResponse(job_id=job.job_id)
 
 @app.get("/documents/{job_id}")

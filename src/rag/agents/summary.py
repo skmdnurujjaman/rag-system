@@ -7,9 +7,8 @@ SUMMARY_SYSTEM = (
     "do not add outside information or opinions."
 )
 
-
-async def summarize_document(document_id: int, max_words: int = 200) -> str:
-    text = await get_document_text(document_id)
+async def summarize_document(document_id: int, max_words: int = 200, *, tenant_id: int) -> str:
+    text = await get_document_text(document_id, tenant_id=tenant_id)
     if not text:
         raise ValueError(f"No content found for document_id={document_id}")
     marker, fenced = fence(text)

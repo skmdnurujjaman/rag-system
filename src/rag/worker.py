@@ -5,10 +5,10 @@ from rag.db.pool import pool
 from rag.ingestion.pipeline import ingest_pdf
 from rag.observability import log
 
-async def ingest_document(ctx, path: str) -> int:
+async def ingest_document(ctx, path: str, tenant_id) -> int:
     """Background task: run the full async ingestion pipeline for one file."""
     log.info("worker.ingest_start", path=path)
-    doc_id = await ingest_pdf(path)          # our async pipeline, unchanged
+    doc_id = await ingest_pdf(path, tenant_id=tenant_id)          # our async pipeline, unchanged
     log.info("worker.ingest_done", path=path, document_id=doc_id)
     return doc_id                             # arq stores the return value as the job result
 

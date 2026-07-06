@@ -7,6 +7,7 @@ from rag.retrieval.search import retrieve
 
 DATASET_PATH = Path(__file__).parent / "golden_dataset.json"
 TOP_K = 5
+EVAL_TENANT = 1
 
 
 class GoldenItem(BaseModel):
@@ -36,7 +37,7 @@ async def evaluate(top_k: int = TOP_K) -> dict:
     recalls, mrrs, precisions = [], [], []
 
     for item in dataset:
-        results = await retrieve(item.question, top_k=top_k)
+        results = await retrieve(item.question, top_k=top_k,tenant_id=EVAL_TENANT)
         relevance = [is_relevant(r["content"], item.relevant_snippets) for r in results]
 
         recall = 1.0 if any(relevance) else 0.0
