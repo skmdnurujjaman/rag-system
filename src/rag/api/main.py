@@ -1,7 +1,7 @@
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Response, Depends, Request
+from fastapi import FastAPI, HTTPException, Response, Depends, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
@@ -16,20 +16,27 @@ from rag.retrieval.search import retrieve
 from rag.security.guardrails import check_input
 from rag.security.output_guard import guard_output
 from rag.ratelimit import check_rate_limit
+from rag.config import settings
+
+from pathlib import Path
+from arq import create_pool
+from arq.connections import RedisSettings
+from arq.jobs import Job
 
 RATE_LIMIT = 5        # requests…
 RATE_WINDOW = 60       # …per 60s per client
+
+UPLOAD_DIR = Path("data/uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 5
 
-
 class Source(BaseModel):
     id: int
     document_id: int
     content: str
-
 
 class QueryResponse(BaseModel):
     answer: str
@@ -38,7 +45,6 @@ class QueryResponse(BaseModel):
 class SummarizeRequest(BaseModel):
     document_id: int
     max_words: int = 200
-
 
 class SummarizeResponse(BaseModel):
     summary: str
@@ -52,10 +58,16 @@ class EssayResponse(BaseModel):
     essay: str
     sources: list[Source]
     
+class IngestResponse(BaseModel):
+    job_id: str
+    status: str = "queued"
+    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await pool.open()        # startup: open the async pool (replaces the old open=True)
+    app.state.arq = await create_pool(RedisSettings.from_dsn(settings.redis_url))   # ← add
     yield
+    await app.state.arq.close()                                                     # ← add
     await pool.close()       # shutdown: drain and close connections
 
 app = FastAPI(title="Agentic RAG", lifespan=lifespan)   # was: FastAPI(title="Agentic RAG")
@@ -132,3 +144,17 @@ async def alert_webhook(payload: dict):
                     status=a["status"],
                     summary=a["annotations"].get("summary"))
     return {"ok": True}
+
+@app.post("/documents", response_model=IngestResponse, status_code=202)
+async def upload_document(request: Request, file: UploadFile) -> IngestResponse:
+    dest = UPLOAD_DIR / file.filename
+    dest.write_bytes(await file.read())                 # save the upload locally
+    job = await request.app.state.arq.enqueue_job("ingest_document", str(dest))
+    return IngestResponse(job_id=job.job_id)
+
+@app.get("/documents/{job_id}")
+async def job_status(job_id: str, request: Request):
+    job = Job(job_id, request.app.state.arq)
+    status = await job.status()                          # queued | in_progress | complete | not_found
+    result = await job.result(timeout=0) if status == "complete" else None
+    return {"job_id": job_id, "status": status, "document_id": result}
