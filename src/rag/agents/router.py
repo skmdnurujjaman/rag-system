@@ -1,13 +1,13 @@
 import logging
 import operator
 import uuid
-from typing import Annotated, Optional, TypedDict
+import asyncio
 
-import psycopg
-from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg import AsyncConnection  
+from typing import Annotated, Optional, TypedDict
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from psycopg.rows import dict_row
-
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
@@ -18,15 +18,6 @@ from rag.security.guardrails import check_input
 
 logger = logging.getLogger(__name__)
 
-_checkpointer_conn = psycopg.connect(
-    settings.database_url,
-    autocommit=True,
-    row_factory=dict_row,
-)
-_checkpointer = PostgresSaver(_checkpointer_conn)
-_checkpointer.setup()
-
-
 class AgentState(TypedDict):
     request: str
     document_id: Optional[int]
@@ -35,8 +26,7 @@ class AgentState(TypedDict):
     subanswers: Annotated[list[str], operator.add]
     result: dict
 
-
-def _classify(request: str) -> str:
+async def _classify(request: str) -> str:
     prompt = (
         "Classify the request into exactly one word: qa, summary, or essay.\n"
         "- qa: answer a question from the documents\n"
@@ -44,20 +34,20 @@ def _classify(request: str) -> str:
         "- essay: write an essay on a topic\n"
         f"\nRequest: {request}\n\nAnswer with only one word:"
     )
-    intent = chat([{"role": "user", "content": prompt}], temperature=0, max_tokens=5).strip().lower()
+    intent = (await chat([{"role": "user", "content": prompt}], temperature=0, max_tokens=5)).strip().lower()
     return intent if intent in {"qa", "summary", "essay"} else "qa"
 
-def router_node(state: AgentState) -> dict:
-    intent = _classify(state["request"])
+async def router_node(state: AgentState) -> dict:
+    intent = await _classify(state["request"])
     logger.info("router intent=%s request=%r", intent, state["request"][:60])
     return {"intent": intent}
 
-def summary_node(state: AgentState) -> dict:
-    return {"result": {"summary": summarize_document(state["document_id"])}}
+async def summary_node(state: AgentState) -> dict:
+    return {"result": {"summary": await summarize_document(state["document_id"])}}
 
 
-def essay_node(state: AgentState) -> dict:
-    return {"result": write_essay(state["request"])}
+async def essay_node(state: AgentState) -> dict:
+    return {"result": await write_essay(state["request"])}
 
 
 def _route(state: AgentState) -> str:
@@ -65,26 +55,26 @@ def _route(state: AgentState) -> str:
 
 # --- Q&A with conditional decomposition ---
 
-def qa_plan_node(state: AgentState) -> dict:
-    subs = decompose(state["request"])           # [question] if simple; multiple if multi-hop
+async def qa_plan_node(state: AgentState) -> dict:
+    subs = await decompose(state["request"])           # [question] if simple; multiple if multi-hop
     logger.info("qa_plan subquestions=%d", len(subs))
     return {"subquestions": subs}
 
-def qa_answer_node(state: AgentState) -> dict:
+async def qa_answer_node(state: AgentState) -> dict:
     sub = state["subquestions"][0]
     logger.info("qa_answer sub=%r", sub[:50])
-    answer = answer_question(sub)["answer"]
+    answer = (await answer_question(sub))["answer"]
     return {"subquestions": state["subquestions"][1:], "subanswers": [answer]}
 
 def qa_should_continue(state: AgentState) -> str:
     return "qa_answer" if state["subquestions"] else "qa_synthesize"
 
-def qa_synthesize_node(state: AgentState) -> dict:
+async def qa_synthesize_node(state: AgentState) -> dict:
     answers = state["subanswers"]
     if len(answers) == 1:
         return {"result": {"answer": answers[0]}}
     joined = "\n\n".join(f"- {a}" for a in answers)
-    final = chat(
+    final = await chat(
         [
             {"role": "system", "content":
              "Combine the partial answers into one coherent answer to the user's original "
@@ -96,7 +86,7 @@ def qa_synthesize_node(state: AgentState) -> dict:
     )
     return {"result": {"answer": final}}
 
-def build_graph():
+def build_graph(checkpointer):
     graph = StateGraph(AgentState)
     graph.add_node("router", router_node)
     graph.add_node("summary", summary_node)
@@ -115,23 +105,38 @@ def build_graph():
     graph.add_edge("summary", END)
     graph.add_edge("essay", END)
     
-    return graph.compile(checkpointer=_checkpointer)
+    return graph.compile(checkpointer=checkpointer)
 
 
+_agent_graph = None
+_init_lock = asyncio.Lock()
 
-agent_graph = build_graph()
+async def _get_graph():
+    """Create the async checkpointer + graph once, on first use (can't await at import)."""
+    global _agent_graph
+    if _agent_graph is None:
+        async with _init_lock:                    # double-checked lock: concurrent first-calls don't race
+            if _agent_graph is None:
+                conn = await AsyncConnection.connect(
+                    settings.database_url, autocommit=True, row_factory=dict_row,
+                )
+                checkpointer = AsyncPostgresSaver(conn)
+                await checkpointer.setup()         # creates checkpoint tables if missing
+                _agent_graph = build_graph(checkpointer)
+    return _agent_graph
 
-def run_agent(request: str, document_id: Optional[int] = None,
+async def run_agent(request: str, document_id: Optional[int] = None,
               token_budget: int = 0, recursion_limit: int = 15, thread_id: Optional[str] = None) -> dict:
     """Run the agent graph with a per-request token budget and a step (loop) limit."""
-    guard = check_input(request)
+    guard = await check_input(request)
     if not guard.allowed:
         logger.warning("agent blocked by guardrail category=%s", guard.category)
         raise ValueError(f"Request blocked by input guardrail: {guard.category}")
+    graph = await _get_graph()
     thread_id = thread_id or str(uuid.uuid4())
     start_budget(token_budget)
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": recursion_limit}
-    return agent_graph.invoke(
+    return await graph.ainvoke(
         {"request": request, "document_id": document_id, "subquestions": [], "subanswers": []},
         config,
     )
