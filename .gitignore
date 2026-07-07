@@ -17,6 +17,7 @@ data/*
 !data/RAG_Study_Notes.pdf
 
 learn/
+blog/
 Interview-questions.md
 progress-tracker.md
 CLAUDE.md
