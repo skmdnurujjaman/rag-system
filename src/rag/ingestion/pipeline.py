@@ -32,7 +32,9 @@ async def ingest_pdf(path: str, *, tenant_id: int) -> int:
     return document_id
 
 if __name__ == "__main__":
-    import asyncio, sys
+    import asyncio
+    import sys
+
     from rag.db.pool import pool
     async def _main():
         async with pool:

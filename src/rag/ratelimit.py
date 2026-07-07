@@ -1,6 +1,8 @@
 import time
 from uuid import uuid4
+
 import redis.asyncio as redis
+
 from rag.config import settings
 from rag.observability import log
 

@@ -1,7 +1,11 @@
 import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response, Depends, Request, UploadFile
+from arq import create_pool
+from arq.connections import RedisSettings
+from arq.jobs import Job
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel
@@ -9,20 +13,15 @@ from pydantic import BaseModel
 from rag.agents.essay import write_essay
 from rag.agents.qa import answer_question
 from rag.agents.summary import summarize_document
+from rag.auth import require_tenant
+from rag.config import settings
 from rag.db.pool import pool
 from rag.generation.answer import generate_answer_stream
 from rag.observability import GUARDRAIL_BLOCKS, log, metrics
+from rag.ratelimit import check_rate_limit
 from rag.retrieval.search import retrieve
 from rag.security.guardrails import check_input
 from rag.security.output_guard import guard_output
-from rag.ratelimit import check_rate_limit
-from rag.config import settings
-from rag.auth import require_tenant
-
-from pathlib import Path
-from arq import create_pool
-from arq.connections import RedisSettings
-from arq.jobs import Job
 
 RATE_LIMIT = 5        # requests…
 RATE_WINDOW = 60       # …per 60s per client

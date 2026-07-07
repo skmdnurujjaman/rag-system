@@ -1,6 +1,9 @@
 import hashlib
+
 from fastapi import Header, HTTPException
+
 from rag.db.pool import pool
+
 
 def _hash(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
